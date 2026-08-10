@@ -1720,7 +1720,7 @@ async def handle_backup_admin_callback(update: Update, context: ContextTypes.DEF
             zip_path = _create_zip_for_admin(list(set(cookies_items)), "Cookies_Backup")
             caption = "🍪 جميع ملفات الكوكيز"
         elif data == "bkp_dbs":
-            db_files = ["users_db.json", "usage_data.db", "settings.json", "admins.json", "codes.json", "usage_counts.json", "blocked_users.json", "cookie_status.json", "pending_requests.json"]
+            db_files = ["users_db.json", "usage_data.db", "settings.json", "admins.json", "codes.json", "usage_counts.json", "blocked_users.json", "cookie_status.json", "pending_requests.json", "allowed_users.json"]
             paths = [os.path.join(script_dir, f) for f in db_files if os.path.exists(os.path.join(script_dir, f))]
             zip_path = _create_zip_for_admin(paths, "Databases_Backup")
             caption = "🗄️ قواعد البيانات والأرصدة والمستخدمين"
@@ -1782,6 +1782,147 @@ def unblock_user(user_id):
         save_blocked_users(blocked)
         return True
     return False
+
+# --- نظام الوضع الخاص (Private Mode / قائمة المصرّح لهم) ---
+ALLOWED_USERS_FILE = "allowed_users.json"
+private_access_pending = set()
+
+def load_allowed_users():
+    if not os.path.exists(ALLOWED_USERS_FILE):
+        return []
+    try:
+        with open(ALLOWED_USERS_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_allowed_users(allowed):
+    with open(ALLOWED_USERS_FILE, "w") as f:
+        json.dump(allowed, f)
+
+def is_user_allowed(user_id):
+    return str(user_id) in load_allowed_users()
+
+def add_allowed_user(user_id):
+    allowed = load_allowed_users()
+    uid = str(user_id)
+    if uid not in allowed:
+        allowed.append(uid)
+        save_allowed_users(allowed)
+        return True
+    return False
+
+def remove_allowed_user(user_id):
+    allowed = load_allowed_users()
+    uid = str(user_id)
+    if uid in allowed:
+        allowed.remove(uid)
+        save_allowed_users(allowed)
+        return True
+    return False
+
+def is_private_mode():
+    return bool(get_settings().get("private_mode", False))
+
+
+async def enforce_private_mode(update, context, user_id=None, name="", username=""):
+    """في الوضع الخاص: يمنع غير المصرّح لهم ويرسل طلب موافقة للأدمن.
+    يرجّع True لو تم المنع (لازم توقف المعالجة)، وFalse لو مسموح بالمتابعة."""
+    if not is_private_mode():
+        return False
+    if user_id is None:
+        user_id = update.effective_user.id if update.effective_user else None
+    if user_id is None:
+        return False
+    if is_admin(user_id) or is_user_allowed(user_id):
+        return False
+
+    lang = get_user_lang(user_id)
+    wait_text = (
+        "🔒 <b>The bot is currently in private mode.</b>\n"
+        "<b>Your access request has been sent to the admin.</b>"
+        if lang == "en" else
+        "🔒 <b>البوت في الوضع الخاص حاليًا.</b>\n"
+        "<b>تم إرسال طلب الاستخدام للأدمن، انتظر الموافقة.</b>"
+    )
+    try:
+        target_msg = update.message or (
+            update.callback_query.message if update.callback_query else None
+        )
+        if target_msg:
+            await target_msg.reply_text(wait_text, parse_mode="HTML")
+    except Exception:
+        pass
+
+    # إشعار الأدمن مرة واحدة فقط لكل مستخدم لتفادي السبام.
+    if user_id not in private_access_pending:
+        private_access_pending.add(user_id)
+        eff_user = update.effective_user
+        disp_name = name or (eff_user.first_name if eff_user else "") or ""
+        uname = username or (eff_user.username if eff_user else "") or ""
+        uname_disp = f"@{uname}" if uname else "—"
+        admin_text = (
+            "🔔 <b>طلب استخدام جديد (الوضع الخاص)</b>\n"
+            f"👤 الاسم: {html.escape(str(disp_name))}\n"
+            f"🆔 الايدي: <code>{user_id}</code>\n"
+            f"🔗 اليوزر: {html.escape(uname_disp)}"
+        )
+        kb = TelegramInlineKeyboardMarkup([[
+            InlineKeyboardButton(text="✅ موافقة", callback_data=f"pa_ok_{user_id}"),
+            InlineKeyboardButton(text="❌ رفض", callback_data=f"pa_no_{user_id}"),
+        ]])
+        for aid in _getlink_admin_ids():
+            try:
+                await context.bot.send_message(
+                    aid, admin_text, reply_markup=kb, parse_mode="HTML"
+                )
+            except Exception:
+                pass
+    return True
+
+
+async def handle_private_access_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    if not is_admin(update.effective_user.id):
+        return
+    m = re.match(r"^pa_(ok|no)_(\d+)$", query.data or "")
+    if not m:
+        return
+    decision, uid = m.group(1), int(m.group(2))
+    private_access_pending.discard(uid)
+    lang = get_user_lang(uid)
+    if decision == "ok":
+        add_allowed_user(uid)
+        try:
+            await query.edit_message_text(
+                f"✅ <b>تمت الموافقة على المستخدم</b> <code>{uid}</code>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+        user_text = (
+            "✅ <b>Your request has been approved! You can use the bot now.</b>"
+            if lang == "en" else
+            "✅ <b>تمت الموافقة على طلبك! تقدر تستخدم البوت دلوقتي.</b>"
+        )
+    else:
+        try:
+            await query.edit_message_text(
+                f"❌ <b>تم رفض المستخدم</b> <code>{uid}</code>",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+        user_text = (
+            "❌ <b>Your access request has been rejected.</b>"
+            if lang == "en" else
+            "❌ <b>تم رفض طلب استخدامك.</b>"
+        )
+    try:
+        await context.bot.send_message(uid, user_text, parse_mode="HTML")
+    except Exception:
+        pass
 
 # --- نظام VIP ---
 def get_vip_users():
@@ -2194,6 +2335,8 @@ _DEFAULT_SETTINGS = {
         # False = يقف عند عدد النجاحات المحدد (هدف المساعدات) ثم يتوقف.
         # True  = الوضع القديم: يفضل يشتغل لحد ما اللينك يخلص بالكامل (HELP MAX).
         "wait_for_help_max": False,
+        # False = الوضع العام (متاح للكل). True = الوضع الخاص (موافقة الأدمن مطلوبة).
+        "private_mode": False,
         "cookie_skip_fresh": True,
         "cookie_headless": True,
         "final_verify_enabled": True,
@@ -6840,6 +6983,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         record_user(user_id, name, user.username or "")
         lang = get_user_lang(user_id)
 
+        # الوضع الخاص: امنع غير المصرّح لهم وأرسل طلب موافقة للأدمن.
+        if await enforce_private_mode(update, context, user_id, name, user.username or ""):
+            return ConversationHandler.END
+
         # Force subscribe check — الفحوصات الثلاثة تعمل بالتوازي الآن.
         settings = get_settings()
         not_subscribed = await collect_missing_force_subs(
@@ -6988,6 +7135,10 @@ async def handle_link_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Blocked user check
     if is_blocked(user_id) and not is_admin(user_id):
+        return
+
+    # الوضع الخاص: امنع غير المصرّح لهم وأرسل طلب موافقة للأدمن.
+    if await enforce_private_mode(update, context, user_id, name, username):
         return
 
     # Policies check (خاص فقط)
@@ -7951,6 +8102,12 @@ async def handle_broadcast_msg(update: Update, context: ContextTypes.DEFAULT_TYP
         
     await msg.reply_text("\u2705 جاري إذاعة رسالتك لكل المستخدمين...")
     users = get_all_user_ids()
+    _bcast_target = context.user_data.pop("broadcast_target", "all")
+    if _bcast_target == "private":
+        try:
+            users = [int(u) for u in load_allowed_users()]
+        except Exception:
+            users = load_allowed_users()
     bot = context.bot
     from_chat_id = msg.chat_id
     message_id = msg.message_id
@@ -9283,6 +9440,8 @@ def build_admin_panel_view():
     sc_status = "\U0001f7e2 مفعل" if sc_enabled else "\U0001f534 معطل"
     wait_max = settings.get("wait_for_help_max", False)
     mode_status = "\U0001f501 يكمل اللينك" if wait_max else "\U0001f3af يقف عند الهدف"
+    private_mode = settings.get("private_mode", False)
+    pm_status = "\U0001f512 الوضع الخاص" if private_mode else "\U0001f513 الوضع العام"
     kb = [
         [InlineKeyboardButton(text="إعدادات الأتمتة / Automation", callback_data="mm_automation", style="primary", icon_custom_emoji_id="5258096772776991776")],
         [InlineKeyboardButton(text="إحصائيات / Statistics", callback_data="mm_stats", style="primary", icon_custom_emoji_id="5936143551854285132")],
@@ -9307,6 +9466,7 @@ def build_admin_panel_view():
         [InlineKeyboardButton(text="الروليت / Roulette", callback_data="mm_roulette", style="primary", icon_custom_emoji_id="5316832430529722441")],
         [InlineKeyboardButton(text=f"{sc_status} عداد المساعدات / Success Counter", callback_data="mm_toggle_success_counter", style="primary")],
         [InlineKeyboardButton(text=f"{mode_status} وضع العمل / Work Mode", callback_data="mm_toggle_work_mode", style="primary")],
+        [InlineKeyboardButton(text=f"{pm_status} / Private Mode", callback_data="mm_toggle_private_mode", style="primary")],
         [InlineKeyboardButton(text="الإذاعة / Broadcast", callback_data="mm_broadcast_system", style="primary", icon_custom_emoji_id="5316830351765550840")],
         [InlineKeyboardButton(text="رجوع", callback_data="mm_back", style="primary", icon_custom_emoji_id="5971832595485299852")],
     ]
@@ -9359,7 +9519,8 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             [InlineKeyboardButton(text="المجاني مفعل / Free On", callback_data="mm_broadcast_free_on", style="primary", icon_custom_emoji_id="6120953301656670791")],
             [InlineKeyboardButton(text="المجاني منتهي / Free Off", callback_data="mm_broadcast_free_off", style="primary", icon_custom_emoji_id="5918075981649679952")],
             [InlineKeyboardButton(text="عاد البوت / Bot Update", callback_data="mm_broadcast_update", style="primary", icon_custom_emoji_id="5260687119092817530")],
-            [InlineKeyboardButton(text="رسالة مخصصة / Custom", callback_data="mm_broadcast_custom", style="primary", icon_custom_emoji_id="5429220948593100075")],
+            [InlineKeyboardButton(text="\U0001f4e2 إذاعة عامة / Public", callback_data="mm_broadcast_custom", style="primary", icon_custom_emoji_id="5429220948593100075")],
+            [InlineKeyboardButton(text="\U0001f512 إذاعة خاصة / Private", callback_data="mm_broadcast_custom_private", style="primary", icon_custom_emoji_id="5429220948593100075")],
             [InlineKeyboardButton(text="بث استفتاء / Poll", callback_data="mm_broadcast_poll", style="primary", icon_custom_emoji_id="5429220948593100075")],
             [InlineKeyboardButton(text="📡 الإذاعة الدورية / Periodic", callback_data="mm_periodic_broadcast", style="primary")],
             [InlineKeyboardButton(text="رجوع", callback_data="mm_admin", style="primary", icon_custom_emoji_id="5971832595485299852")],
@@ -9646,6 +9807,8 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         sc_status = "\U0001f7e2 مفعل" if sc_enabled else "\U0001f534 معطل"
         wait_max = settings.get("wait_for_help_max", False)
         mode_status = "\U0001f501 يكمل اللينك" if wait_max else "\U0001f3af يقف عند الهدف"
+        private_mode = settings.get("private_mode", False)
+        pm_status = "\U0001f512 الوضع الخاص" if private_mode else "\U0001f513 الوضع العام"
         kb = [
             [InlineKeyboardButton(text="\u2699\uFE0F إعدادات الأتمتة / Automation", callback_data="mm_automation", style="primary")],
             [InlineKeyboardButton(text="\U0001f4ca إحصائيات / Statistics", callback_data="mm_stats", style="primary")],
@@ -9665,6 +9828,7 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             [InlineKeyboardButton(text="\U0001f3b0 الروليت / Roulette", callback_data="mm_roulette", style="primary")],
             [InlineKeyboardButton(text=f"{sc_status} عداد المساعدات / Success Counter", callback_data="mm_toggle_success_counter", style="primary")],
             [InlineKeyboardButton(text=f"{mode_status} وضع العمل / Work Mode", callback_data="mm_toggle_work_mode", style="primary")],
+            [InlineKeyboardButton(text=f"{pm_status} / Private Mode", callback_data="mm_toggle_private_mode", style="primary")],
             [InlineKeyboardButton(text="\U0001f4e2 الإذاعة / Broadcast", callback_data="mm_broadcast_system", style="primary")],
             [InlineKeyboardButton(text="رجوع", callback_data="mm_back", style="primary", icon_custom_emoji_id="5971832595485299852")],
         ]
@@ -9703,6 +9867,27 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             await query.message.reply_text(
                 "\U0001f3af <b>وضع العمل:</b> يقف عند الهدف.\n"
                 f"البوت هيقف بعد <b>{target_helps}</b> نجاح (هدف المساعدات).",
+                parse_mode="HTML"
+            )
+        return ConversationHandler.END
+
+    elif data == "mm_toggle_private_mode":
+        settings = get_settings()
+        current = settings.get("private_mode", False)
+        settings["private_mode"] = not current
+        save_settings(settings)
+        if settings["private_mode"]:
+            allowed_count = len(load_allowed_users())
+            await query.message.reply_text(
+                "\U0001f512 <b>تم تفعيل الوضع الخاص.</b>\n"
+                "أي مستخدم غير مصرّح له هيتبعتلك طلب موافقة قبل ما يستخدم البوت.\n"
+                f"عدد المصرّح لهم حاليًا: <b>{allowed_count}</b>",
+                parse_mode="HTML"
+            )
+        else:
+            await query.message.reply_text(
+                "\U0001f513 <b>تم تفعيل الوضع العام.</b>\n"
+                "البوت متاح لكل المستخدمين بدون موافقة.",
                 parse_mode="HTML"
             )
         return ConversationHandler.END
@@ -9943,7 +10128,18 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         await query.message.reply_text("\u270f\uFE0F أرسل الرسالة التي تريد إذاعتها لكل المستخدمين:")
         return WAITING_FOR_BROADCAST_MSG
 
+    elif data == "mm_broadcast_custom_private":
+        context.user_data["broadcast_target"] = "private"
+        allowed_count = len(load_allowed_users())
+        await query.message.reply_text(
+            "\U0001f512 <b>إذاعة خاصة</b>\n"
+            f"✏️ أرسل الرسالة لإذاعتها للمستخدمين المصرّح لهم فقط (<b>{allowed_count}</b>):",
+            parse_mode="HTML",
+        )
+        return WAITING_FOR_BROADCAST_MSG
+
     elif data == "mm_broadcast_poll":
+        context.user_data["broadcast_target"] = "all"
         await query.message.reply_text("📊 أرسل الاستفتاء الآن (قم بإنشاء استفتاء وإرساله هنا ليتم بثه):")
         return WAITING_FOR_BROADCAST_MSG
 
@@ -10150,7 +10346,7 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
                 real_cookies_dir = os.path.join(script_dir, "Cookies_Accounts")
                 if os.path.exists(real_cookies_dir): paths_to_zip.append(real_cookies_dir)
             elif key == "dbs_zip":
-                db_files = ["users_db.json", "usage_data.db", "settings.json", "admins.json", "codes.json", "usage_counts.json", "blocked_users.json", "cookie_status.json", "pending_requests.json"]
+                db_files = ["users_db.json", "usage_data.db", "settings.json", "admins.json", "codes.json", "usage_counts.json", "blocked_users.json", "cookie_status.json", "pending_requests.json", "allowed_users.json"]
                 paths_to_zip = [os.path.join(script_dir, f) for f in db_files if os.path.exists(os.path.join(script_dir, f))]
             elif key == "code_zip":
                 paths_to_zip = [os.path.join(script_dir, f) for f in os.listdir(script_dir) if f.endswith('.py')]
@@ -16438,6 +16634,8 @@ async def handle_getlink_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
     lang = get_user_lang(user_id)
+    if await enforce_private_mode(update, context, user_id, user.first_name or "", user.username or ""):
+        return ConversationHandler.END
     if not _getlink_user_allowed(user_id):
         await update.message.reply_text(
             _getlink_balance_required_text(user_id, lang),
@@ -16644,6 +16842,7 @@ def main():
         per_message=False,
     )
 
+    app.add_handler(CallbackQueryHandler(handle_private_access_decision, pattern="^pa_(ok|no)_\\d+$"))
     app.add_handler(CallbackQueryHandler(stop_link_handler, pattern="^stop_"))
     app.add_handler(CallbackQueryHandler(handle_perflog_button, pattern="^perflog_"))
     app.add_handler(CallbackQueryHandler(force_sub_check_handler, pattern="^force_sub_check$"))
