@@ -1825,6 +1825,31 @@ def is_private_mode():
     return bool(get_settings().get("private_mode", False))
 
 
+async def _notify_private_request(context, user_id, name="", username=""):
+    """يرسل طلب موافقة للأدمن مرة واحدة فقط لكل مستخدم لتفادي السبام."""
+    if user_id in private_access_pending:
+        return
+    private_access_pending.add(user_id)
+    uname_disp = f"@{username}" if username else "—"
+    admin_text = (
+        "🔔 <b>طلب استخدام جديد (الوضع الخاص)</b>\n"
+        f"👤 الاسم: {html.escape(str(name or ''))}\n"
+        f"🆔 الايدي: <code>{user_id}</code>\n"
+        f"🔗 اليوزر: {html.escape(uname_disp)}"
+    )
+    kb = TelegramInlineKeyboardMarkup([[
+        InlineKeyboardButton(text="✅ موافقة", callback_data=f"pa_ok_{user_id}"),
+        InlineKeyboardButton(text="❌ رفض", callback_data=f"pa_no_{user_id}"),
+    ]])
+    for aid in _getlink_admin_ids():
+        try:
+            await context.bot.send_message(
+                aid, admin_text, reply_markup=kb, parse_mode="HTML"
+            )
+        except Exception:
+            pass
+
+
 async def enforce_private_mode(update, context, user_id=None, name="", username=""):
     """في الوضع الخاص: يمنع غير المصرّح لهم ويرسل طلب موافقة للأدمن.
     يرجّع True لو تم المنع (لازم توقف المعالجة)، وFalse لو مسموح بالمتابعة."""
@@ -1854,31 +1879,53 @@ async def enforce_private_mode(update, context, user_id=None, name="", username=
     except Exception:
         pass
 
-    # إشعار الأدمن مرة واحدة فقط لكل مستخدم لتفادي السبام.
-    if user_id not in private_access_pending:
-        private_access_pending.add(user_id)
-        eff_user = update.effective_user
-        disp_name = name or (eff_user.first_name if eff_user else "") or ""
-        uname = username or (eff_user.username if eff_user else "") or ""
-        uname_disp = f"@{uname}" if uname else "—"
-        admin_text = (
-            "🔔 <b>طلب استخدام جديد (الوضع الخاص)</b>\n"
-            f"👤 الاسم: {html.escape(str(disp_name))}\n"
-            f"🆔 الايدي: <code>{user_id}</code>\n"
-            f"🔗 اليوزر: {html.escape(uname_disp)}"
-        )
-        kb = TelegramInlineKeyboardMarkup([[
-            InlineKeyboardButton(text="✅ موافقة", callback_data=f"pa_ok_{user_id}"),
-            InlineKeyboardButton(text="❌ رفض", callback_data=f"pa_no_{user_id}"),
-        ]])
-        for aid in _getlink_admin_ids():
-            try:
-                await context.bot.send_message(
-                    aid, admin_text, reply_markup=kb, parse_mode="HTML"
-                )
-            except Exception:
-                pass
+    await _notify_private_request(context, user_id, name, username)
     return True
+
+
+async def private_mode_middleware(update, context):
+    """بوابة عامة: في الوضع الخاص يوقف كل شيء (أزرار/إيداع/أي استخدام)
+    لغير المصرّح لهم، ويعرض رسالة الانتظار ويرسل طلب الموافقة للأدمن."""
+    if not is_private_mode():
+        return
+    user = update.effective_user
+    user_id = user.id if user else None
+    if user_id is None:
+        return
+    if is_admin(user_id) or is_user_allowed(user_id):
+        return
+
+    lang = get_user_lang(user_id)
+    query = update.callback_query
+    if query is not None:
+        alert = (
+            "🔒 Private mode — waiting for admin approval."
+            if lang == "en" else
+            "🔒 الوضع الخاص — بانتظار موافقة الأدمن."
+        )
+        try:
+            await query.answer(alert, show_alert=True)
+        except Exception:
+            pass
+    elif update.message is not None:
+        wait_text = (
+            "🔒 <b>The bot is currently in private mode.</b>\n"
+            "<b>Your access request has been sent to the admin.</b>"
+            if lang == "en" else
+            "🔒 <b>البوت في الوضع الخاص حاليًا.</b>\n"
+            "<b>تم إرسال طلب الاستخدام للأدمن، انتظر الموافقة.</b>"
+        )
+        try:
+            await update.message.reply_text(wait_text, parse_mode="HTML")
+        except Exception:
+            pass
+
+    await _notify_private_request(
+        context, user_id,
+        (user.first_name if user else "") or "",
+        (user.username if user else "") or "",
+    )
+    raise ApplicationHandlerStop()
 
 
 async def handle_private_access_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -16832,6 +16879,8 @@ def main():
         .build()
     )
     app.add_handler(TypeHandler(Update, block_middleware), group=-1)
+    # بوابة الوضع الخاص: توقف كل استخدام لغير المصرّح لهم (أزرار/إيداع/كله).
+    app.add_handler(TypeHandler(Update, private_mode_middleware), group=-1)
 
     conv = ConversationHandler(
         entry_points=[
