@@ -16880,7 +16880,7 @@ def main():
     )
     app.add_handler(TypeHandler(Update, block_middleware), group=-1)
     # بوابة الوضع الخاص: توقف كل استخدام لغير المصرّح لهم (أزرار/إيداع/كله).
-    app.add_handler(TypeHandler(Update, private_mode_middleware), group=-1)
+    app.add_handler(TypeHandler(Update, private_mode_middleware), group=-2)
 
     conv = ConversationHandler(
         entry_points=[
