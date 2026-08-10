@@ -2337,6 +2337,8 @@ _DEFAULT_SETTINGS = {
         "wait_for_help_max": False,
         # False = الوضع العام (متاح للكل). True = الوضع الخاص (موافقة الأدمن مطلوبة).
         "private_mode": False,
+        # False = النظام الأساسي (SlaveHelp API). True = النظام الاحتياطي (متصفح).
+        "use_browser_fallback": False,
         "cookie_skip_fresh": True,
         "cookie_headless": True,
         "final_verify_enabled": True,
@@ -4514,6 +4516,43 @@ async def process_account(email, cookie_path, target_task, success_count, semaph
             and success_count[0] >= target_task.get('target_helps', 0)
         ):
             return
+
+        # النظام الاحتياطي (أسلوب صلاح): تنفيذ المساعدة بفتح اللينك في متصفح
+        # بكوكيز الحساب بدل نداء SlaveHelp — يُستخدم لو الـ API اتعطّل.
+        if settings.get("use_browser_fallback", False):
+            ctx = None
+            try:
+                ctx = await create_account_context(email, cookie_path)
+                page = await ctx.new_page()
+                await page.goto(
+                    target_task['link'],
+                    wait_until="domcontentloaded",
+                    timeout=30000,
+                )
+                await asyncio.sleep(max(1.0, float(settings.get("post_delay", 2.0) or 2.0)))
+                success_count[0] += 1
+                try: check_and_update_usage(email)
+                except: pass
+                if completed_count is not None:
+                    completed_count[0] += 1
+                try:
+                    t_id = target_task['task_id']
+                    if t_id in remaining_tasks:
+                        remaining_tasks[t_id]["done"] = success_count[0]
+                        remaining_tasks[t_id]["remaining"] = max(0, target_task['target_helps'] - success_count[0])
+                        remaining_tasks[t_id]["completed"] = remaining_tasks[t_id].get("completed", 0) + 1
+                        if opened_count is not None:
+                            remaining_tasks[t_id]["opened"] = opened_count[0]
+                except: pass
+                print(f"[{email}] {success_count[0]}/{target_task['target_helps']} ✅ (متصفح احتياطي)")
+                return "success"
+            except Exception as _be:
+                print(f"[{email}] ⚠️ خطأ (متصفح احتياطي): {_be}")
+                return
+            finally:
+                if ctx:
+                    try: await ctx.close()
+                    except: pass
 
         while time.time() < ip_cooldown_until:
             await asyncio.sleep(2)
@@ -9442,6 +9481,8 @@ def build_admin_panel_view():
     mode_status = "\U0001f501 يكمل اللينك" if wait_max else "\U0001f3af يقف عند الهدف"
     private_mode = settings.get("private_mode", False)
     pm_status = "\U0001f512 الوضع الخاص" if private_mode else "\U0001f513 الوضع العام"
+    use_browser = settings.get("use_browser_fallback", False)
+    eng_status = "\U0001f310 المتصفح (احتياطي)" if use_browser else "⚡ API (أساسي)"
     kb = [
         [InlineKeyboardButton(text="إعدادات الأتمتة / Automation", callback_data="mm_automation", style="primary", icon_custom_emoji_id="5258096772776991776")],
         [InlineKeyboardButton(text="إحصائيات / Statistics", callback_data="mm_stats", style="primary", icon_custom_emoji_id="5936143551854285132")],
@@ -9467,6 +9508,7 @@ def build_admin_panel_view():
         [InlineKeyboardButton(text=f"{sc_status} عداد المساعدات / Success Counter", callback_data="mm_toggle_success_counter", style="primary")],
         [InlineKeyboardButton(text=f"{mode_status} وضع العمل / Work Mode", callback_data="mm_toggle_work_mode", style="primary")],
         [InlineKeyboardButton(text=f"{pm_status} / Private Mode", callback_data="mm_toggle_private_mode", style="primary")],
+        [InlineKeyboardButton(text=f"{eng_status} / Link Engine", callback_data="mm_toggle_link_engine", style="primary")],
         [InlineKeyboardButton(text="الإذاعة / Broadcast", callback_data="mm_broadcast_system", style="primary", icon_custom_emoji_id="5316830351765550840")],
         [InlineKeyboardButton(text="رجوع", callback_data="mm_back", style="primary", icon_custom_emoji_id="5971832595485299852")],
     ]
@@ -9809,6 +9851,8 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
         mode_status = "\U0001f501 يكمل اللينك" if wait_max else "\U0001f3af يقف عند الهدف"
         private_mode = settings.get("private_mode", False)
         pm_status = "\U0001f512 الوضع الخاص" if private_mode else "\U0001f513 الوضع العام"
+        use_browser = settings.get("use_browser_fallback", False)
+        eng_status = "\U0001f310 المتصفح (احتياطي)" if use_browser else "⚡ API (أساسي)"
         kb = [
             [InlineKeyboardButton(text="\u2699\uFE0F إعدادات الأتمتة / Automation", callback_data="mm_automation", style="primary")],
             [InlineKeyboardButton(text="\U0001f4ca إحصائيات / Statistics", callback_data="mm_stats", style="primary")],
@@ -9829,6 +9873,7 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             [InlineKeyboardButton(text=f"{sc_status} عداد المساعدات / Success Counter", callback_data="mm_toggle_success_counter", style="primary")],
             [InlineKeyboardButton(text=f"{mode_status} وضع العمل / Work Mode", callback_data="mm_toggle_work_mode", style="primary")],
             [InlineKeyboardButton(text=f"{pm_status} / Private Mode", callback_data="mm_toggle_private_mode", style="primary")],
+            [InlineKeyboardButton(text=f"{eng_status} / Link Engine", callback_data="mm_toggle_link_engine", style="primary")],
             [InlineKeyboardButton(text="\U0001f4e2 الإذاعة / Broadcast", callback_data="mm_broadcast_system", style="primary")],
             [InlineKeyboardButton(text="رجوع", callback_data="mm_back", style="primary", icon_custom_emoji_id="5971832595485299852")],
         ]
@@ -9888,6 +9933,26 @@ async def admin_callback_handler(update: Update, context: ContextTypes.DEFAULT_T
             await query.message.reply_text(
                 "\U0001f513 <b>تم تفعيل الوضع العام.</b>\n"
                 "البوت متاح لكل المستخدمين بدون موافقة.",
+                parse_mode="HTML"
+            )
+        return ConversationHandler.END
+
+    elif data == "mm_toggle_link_engine":
+        settings = get_settings()
+        current = settings.get("use_browser_fallback", False)
+        settings["use_browser_fallback"] = not current
+        save_settings(settings)
+        if settings["use_browser_fallback"]:
+            await query.message.reply_text(
+                "\U0001f310 <b>تم التحويل للنظام الاحتياطي (المتصفح).</b>\n"
+                "التنفيذ هيتم بفتح اللينك في متصفح بكوكيز كل حساب (أبطأ لكن يشتغل لو الـ API متعطّل).\n"
+                "⚠️ يُفضّل تقليل «التابات المتزامنة» في هذا الوضع.",
+                parse_mode="HTML"
+            )
+        else:
+            await query.message.reply_text(
+                "⚡ <b>تم التحويل للنظام الأساسي (API).</b>\n"
+                "التنفيذ السريع عبر SlaveHelp.",
                 parse_mode="HTML"
             )
         return ConversationHandler.END
