@@ -1309,6 +1309,44 @@ def build_uc_collection_message(
     )
 
 
+def build_business_uc_message(collect_state, uc_amount, player_id, player_name, collected=""):
+    """رسالة حساب البيزنس المخصصة: قبل التجميع (collecting) وبعده (success/empty)."""
+    safe_uc_amount = html.escape(str(uc_amount or ""))
+    safe_player_id = html.escape(str(player_id or ""))
+    safe_player_name = html.escape(str(player_name or ""))
+    safe_collected = html.escape(str(collected or ""))
+
+    header = (
+        '<tg-emoji emoji-id="5965266956289317790">\U0001f4b0</tg-emoji>'
+        '<b>تم تنفيذ طلبك </b>'
+        '<tg-emoji emoji-id="5181635819353408152">\U0001f49f</tg-emoji>\n'
+        '<tg-emoji emoji-id="5181452604638495965">\U0001f49f</tg-emoji>'
+        f'<b>شحنتك هي ( {safe_uc_amount} ) </b>'
+        '<tg-emoji emoji-id="5774009820625508763">\U0001f4b0</tg-emoji>\n'
+        '<tg-emoji emoji-id="5774115287842427823">\U0001f451</tg-emoji>'
+        f'<b>ايدي : <code>{safe_player_id}</code></b>\n'
+        '<tg-emoji emoji-id="5776100756734088362">✨</tg-emoji>'
+        f'<b> اسم الحساب : {safe_player_name}</b>\n'
+    )
+    if collect_state == "success":
+        footer = (
+            '<tg-emoji emoji-id="5814709033801620288">☑️</tg-emoji>'
+            f'<b>تم تجميع ( {safe_collected} ) تلقائيا </b>'
+            '<tg-emoji emoji-id="5812413846228310607">\U0001f525</tg-emoji>'
+        )
+    elif collect_state == "empty":
+        footer = (
+            '<tg-emoji emoji-id="5855064567989673201">❌</tg-emoji>'
+            '<b>لا يوجد يوسي للتجميع</b>'
+        )
+    else:  # collecting
+        footer = (
+            '<tg-emoji emoji-id="5852724394928905160">✨</tg-emoji>'
+            '<b>جاري تجميع اليوسي</b>'
+        )
+    return header + footer
+
+
 def calculate_claimed_uc(prizes):
     """اجمع قيمة UC فقط من أسماء جوائز UnknownCash/UC."""
     total_uc = 0
@@ -6260,10 +6298,47 @@ async def process_single_task(app: Application):
                     first_name = item.get('user_first') or item.get('username') or ""
                     uid_val = item.get('user_id')
                     uid_str = str(uid_val or '')
+                    is_business = bool(item.get('business_connection_id'))
                     is_auto_collect_enabled = get_user_auto_collect(uid_val)
                     import html
-                    
-                    if is_auto_collect_enabled:
+
+                    if is_business:
+                        # رد حساب البيزنس المخصص: تجميع تلقائي دائمًا (قبل/بعد التجميع)
+                        final_msg = build_business_uc_message(
+                            "collecting", uc_amount, uc_player_id, uc_player_name,
+                        )
+                        await force_update_msg()
+
+                        async def run_business_auto_claim(l_url, h_id, u_amt, p_id, p_name, task_item):
+                            try:
+                                c_success, c_prizes, _, _, _ = await auto_claim_link(l_url, mp_help_id=h_id)
+                                if c_success and c_prizes:
+                                    total_uc = calculate_claimed_uc(c_prizes)
+                                    collected_txt = (
+                                        f"{total_uc} UC" if total_uc > 0
+                                        else ", ".join(str(p) for p in c_prizes[:5])
+                                    )
+                                    bg_msg = build_business_uc_message(
+                                        "success", u_amt, p_id, p_name, collected_txt,
+                                    )
+                                else:
+                                    bg_msg = build_business_uc_message(
+                                        "empty", u_amt, p_id, p_name,
+                                    )
+                                await update_task_message(
+                                    app.bot, task_item, bg_msg, parse_mode="HTML"
+                                )
+                            except Exception as _bge:
+                                print(f"[bg_claim business] Error: {_bge}")
+
+                        asyncio.create_task(
+                            run_business_auto_claim(
+                                link, mp_help_id, uc_amount,
+                                uc_player_id, uc_player_name, item,
+                            )
+                        )
+
+                    elif is_auto_collect_enabled:
                         # أسلوب التجميع التلقائي الفوري (بدون زرار)
                         final_msg = build_uc_collection_message(
                             task_lang,
