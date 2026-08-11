@@ -30,6 +30,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 
 BUILD_ID = "COMPACT_TWO_COLUMN_KEYBOARDS_20260802"
 print(f"[build] {BUILD_ID}")
+print("[patch] PRIVATE_GATE_2026 = ON (private mode blocks /buy + recharge + all buttons)")
 
 
 def InlineKeyboardMarkup(inline_keyboard=None, **kwargs):
