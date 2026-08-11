@@ -12042,6 +12042,7 @@ async def send_recharge_message(msg_or_query, user_id, settings, lang):
     await msg_or_query.reply_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 async def handle_recharge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
@@ -12160,6 +12161,7 @@ async def send_timed_bybit_networks(message, offer_id, lang="ar"):
 
 
 async def handle_timed_offers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -12373,6 +12375,7 @@ async def create_bybit_payment_order(update: Update, context: ContextTypes.DEFAU
 
 
 async def handle_bybit_recharge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -12693,6 +12696,7 @@ async def create_vip_binance_payment_order(update: Update, context: ContextTypes
 
 
 async def handle_vip_subscription_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -13157,6 +13161,7 @@ async def handle_binance_order_status_check(update: Update, context: ContextType
 
 
 async def handle_binance_recharge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     query = update.callback_query
     data = query.data
     user_id = update.effective_user.id
@@ -13316,6 +13321,7 @@ async def handle_binance_sender_id_input(update: Update, context: ContextTypes.D
 
 
 async def handle_recharge_standard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
@@ -16236,6 +16242,7 @@ async def handle_group_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(text, reply_markup=get_group_keyboard(lang))
 
 async def cmd_buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     user_id = update.effective_user.id
     lang = get_user_lang(user_id)
     settings = get_settings()
@@ -16243,6 +16250,7 @@ async def cmd_buy(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await enforce_private_mode(update, context): return
     user_id = update.effective_user.id
     support_list = get_settings().get("support", ["@ZOMA_DES3"])
     lang = get_user_lang(user_id)
