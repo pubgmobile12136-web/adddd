@@ -1764,8 +1764,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pts = check_user(user_id, update.effective_user.username or "")
     is_adm = is_admin(user_id)
     is_vp = is_vip(user_id)
-    settings = get_settings()
-    
+
     lang = get_user_lang(user_id)
     
     # Check deep links
@@ -1777,7 +1776,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return WAITING_FOR_LINK
 
     if lang == "ar":
-        greeting = settings.get("welcome_text", "اهلا بيك يا صديقي في midasbuy")
+        greeting = "اهلا بيك يا صديقي في midasbuy"
         id_label = "أيديك:"
         points_label = "رصيدك من النقاط:"
     else:
