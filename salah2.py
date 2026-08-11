@@ -423,9 +423,8 @@ def redeem_code(code, user_id):
 def get_user_keyboard(is_admin_user=False, is_vip_user=False, lang="ar"):
     if lang == "ar":
         kb = [
-            [KeyboardButton(text="حسابي"), KeyboardButton(text="🎫 استرداد كود")],
-            [KeyboardButton(text="تواصل معنا"), KeyboardButton(text="🎥 فيديو شرح")],
-            [KeyboardButton(text="اللغة / Language")],
+            [KeyboardButton(text="حسابي 🥹"), KeyboardButton(text="استرداد كود 🔥")],
+            [KeyboardButton(text="تواصل معنا 😶"), KeyboardButton(text="اللغه الخاصه بك 🎁")],
         ]
         if is_admin_user:
             kb.append([KeyboardButton(text="لوحة الإدارة")])
@@ -433,9 +432,8 @@ def get_user_keyboard(is_admin_user=False, is_vip_user=False, lang="ar"):
             kb.append([KeyboardButton(text="لوحة الـ VIP")])
     else:
         kb = [
-            [KeyboardButton(text="My Account"), KeyboardButton(text="🎫 Redeem Code")],
-            [KeyboardButton(text="Contact Us"), KeyboardButton(text="🎥 Tutorial")],
-            [KeyboardButton(text="اللغة / Language")],
+            [KeyboardButton(text="My Account 🥹"), KeyboardButton(text="Redeem Code 🔥")],
+            [KeyboardButton(text="Contact Us 😶"), KeyboardButton(text="Language 🎁")],
         ]
         if is_admin_user:
             kb.append([KeyboardButton(text="Admin Panel")])
@@ -1759,14 +1757,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return WAITING_FOR_LINK
 
     if lang == "ar":
-        welcome = settings.get("welcome_text", "مرحباً بك في بوت الروليت المتطور 🎰!")
-        text = c(f"{welcome}\n\n🔹 أيديك: <code>{user_id}</code>\n💎 رصيدك من النقاط: <b>{pts}</b>")
+        greeting = settings.get("welcome_text", "اهلا بيك يا صديقي في midasbuy")
+        id_label = "أيديك:"
+        points_label = "رصيدك من النقاط:"
     else:
-        text = c(f"Welcome to the advanced Roulette Bot 🎰!\n\n🔹 Your ID: <code>{user_id}</code>\n💎 Your Points: <b>{pts}</b>")
-        
+        greeting = "Welcome my friend to midasbuy"
+        id_label = "Your ID:"
+        points_label = "Your Points:"
+
+    text = (
+        f'<tg-emoji emoji-id="6014567928102393968">🎁</tg-emoji><b>{greeting} </b><tg-emoji emoji-id="5958519833250238517">❤️</tg-emoji>\n\n'
+        f'<tg-emoji emoji-id="5852804431644465571">☑️</tg-emoji> <b>{id_label}</b> <code>{user_id}</code> <tg-emoji emoji-id="5774115287842427823">👑</tg-emoji>\n'
+        f'<tg-emoji emoji-id="5852724394928905160">✨</tg-emoji> <b>{points_label}</b> <code>{pts} </code> <tg-emoji emoji-id="5917828844936502300">🤑</tg-emoji>'
+    )
+
     msg_obj = update.message or update.callback_query.message
-    # Remove old reply keyboard before sending the new inline one
-    await msg_obj.reply_text(text, reply_markup=get_user_keyboard(is_adm, is_vp, lang), parse_mode="HTML")
+    kb = get_user_keyboard(is_adm, is_vp, lang)
+    try:
+        await msg_obj.reply_text(text, reply_markup=kb, parse_mode="HTML", message_effect_id="5104841245755180586")
+    except Exception:
+        await msg_obj.reply_text(text, reply_markup=kb, parse_mode="HTML")
     return ConversationHandler.END
 
 
@@ -2666,7 +2676,6 @@ MM_MAP = {
     "mm_gen_codes": ("🎫 إنشاء أكواد", "🎫 Generate Codes"),
     "mm_codes_list": ("🎫 إدارة الأكواد", "🎫 Manage Codes"),
     "mm_toggle_free_mode": ("", ""),
-    "mm_tutorial": ("🎥 فيديو شرح", "🎥 Tutorial"),
     "mm_set_tutorial": ("🎥 تعيين فيديو الشرح", "🎥 Set Tutorial Video"),
     "mm_data_files": ("📁 ملفات البيانات", "📁 Data Files"),
     "mm_force_cookies_refresh": ("🔄 تحديث الكوكيز إجباري", "🔄 Force Refresh Cookies"),
@@ -2775,19 +2784,19 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     vip_perms = settings.get("vip_permissions", {})
     lang = get_user_lang(uid)
 
-    if text in ["حسابي", "My Account"]:
+    if text in ["حسابي", "My Account", "حسابي 🥹", "My Account 🥹"]:
         p = check_user(uid)
         if lang == "ar":
             msg = c(f"👤 <b>معلومات حسابك:</b>\n\n🆔 الأيدي: <code>{uid}</code>\n💎 نقاط الروابط: <b>{p}</b>")
         else:
             msg = c(f"👤 <b>Your Account Info:</b>\n\n🆔 ID: <code>{uid}</code>\n💎 Link Points: <b>{p}</b>")
         await msg_obj.reply_text(msg, parse_mode="HTML")
-    elif text in ["تواصل معنا", "Contact Us"]:
+    elif text in ["تواصل معنا", "Contact Us", "تواصل معنا 😶", "Contact Us 😶"]:
         sup = settings.get("support", "@SALAH104").replace("@", "")
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("الدعم الفني 💬" if lang == "ar" else "Technical Support 💬", url=f"https://t.me/{sup}", style="primary")]])
         msg = c("📞 <b>نحن هنا لخدمتك، تواصل معنا عبر الرابط أدناه:</b>" if lang == "ar" else "📞 <b>We are here to serve you, contact us via the link below:</b>")
         await msg_obj.reply_text(msg, reply_markup=kb, parse_mode="HTML")
-    elif text == "اللغة / Language":
+    elif text in ["اللغة / Language", "اللغه الخاصه بك 🎁", "Language 🎁"]:
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("العربية", callback_data="set_lang_ar", style="primary", icon_custom_emoji_id="5990301766606919813"),
             InlineKeyboardButton("English", callback_data="set_lang_en", style="primary", icon_custom_emoji_id="5228866831678191568")
@@ -2805,21 +2814,11 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg_obj.reply_text(msg, reply_markup=get_user_keyboard(is_adm, is_vip_user, lang), parse_mode="HTML")
         return ConversationHandler.END
     
-    if text in ["🎥 فيديو شرح", "🎥 Tutorial"]:
-        video_link = settings.get("tutorial_video", "")
-        if video_link:
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton("🎥 مشاهدة" if lang == "ar" else "🎥 Watch", url=video_link, style="primary")]])
-            msg = c("🎥 <b>شاهد فيديو الشرح من الرابط أدناه:</b>" if lang == "ar" else "🎥 <b>Watch the tutorial video below:</b>")
-            await msg_obj.reply_text(msg, reply_markup=kb, parse_mode="HTML")
-        else:
-            msg = "❌ لا يوجد فيديو شرح حالياً." if lang == "ar" else "❌ No tutorial video available."
-            await msg_obj.reply_text(msg)
-        return ConversationHandler.END
-    elif text in ["🎫 استرداد كود", "🎫 Redeem Code"]:
+    if text in ["🎫 استرداد كود", "🎫 Redeem Code", "استرداد كود 🔥", "Redeem Code 🔥"]:
         msg = c("🎫 <b>أرسل الكود الآن:</b>" if lang == "ar" else "🎫 <b>Send the code now:</b>")
         await msg_obj.reply_text(msg, parse_mode="HTML")
         return WAITING_FOR_REDEEM_CODE
-    
+
     elif is_adm or is_vip_user:
         # Check permissions for VIP accessible features
         if text in ["📢 إذاعة", "📢 Broadcast"]:
@@ -3065,7 +3064,7 @@ def main():
     conv = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"^(حسابي|My Account|تواصل معنا|Contact Us|اللغة / Language|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|🎫 إنشاء أكواد|🎫 Generate Codes|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 فيديو شرح|🎥 Tutorial|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
+            MessageHandler(filters.Regex(r"^(حسابي|My Account|حسابي 🥹|My Account 🥹|تواصل معنا|Contact Us|تواصل معنا 😶|Contact Us 😶|اللغة / Language|اللغه الخاصه بك 🎁|Language 🎁|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|استرداد كود 🔥|Redeem Code 🔥|🎫 إنشاء أكواد|🎫 Generate Codes|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
             CallbackQueryHandler(main_menu_handler, pattern="^mm_"),
             CallbackQueryHandler(automation_settings_callback_handler, pattern="^set_(tabs|target|login|search|post|account|comp|batch|close|draw|claim)_")
         ],
