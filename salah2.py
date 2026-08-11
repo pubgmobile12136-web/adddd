@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import filedialog
 from curl_cffi import requests as curl_requests
 from datetime import datetime, timedelta, timezone
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler, ConversationHandler
 
 EMOJI_IDS = {
@@ -423,27 +423,25 @@ def redeem_code(code, user_id):
 def get_user_keyboard(is_admin_user=False, is_vip_user=False, lang="ar"):
     if lang == "ar":
         kb = [
-            [InlineKeyboardButton(text="ارسال الرابط", callback_data="mm_send_link", icon_custom_emoji_id=EMOJI_IDS["🎰"], style="primary")],
-            [InlineKeyboardButton(text="حسابي", callback_data="mm_account", icon_custom_emoji_id=EMOJI_IDS["👤"], style="primary"), InlineKeyboardButton(text="🎫 استرداد كود", callback_data="mm_redeem", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")],
-            [InlineKeyboardButton(text="تواصل معنا", callback_data="mm_contact", icon_custom_emoji_id=EMOJI_IDS["📞"], style="primary"), InlineKeyboardButton(text="🎥 فيديو شرح", callback_data="mm_tutorial", style="primary")],
-            [InlineKeyboardButton(text="اللغة / Language", callback_data="mm_lang", icon_custom_emoji_id=EMOJI_IDS["🔹"], style="primary")],
+            [KeyboardButton(text="حسابي"), KeyboardButton(text="🎫 استرداد كود")],
+            [KeyboardButton(text="تواصل معنا"), KeyboardButton(text="🎥 فيديو شرح")],
+            [KeyboardButton(text="اللغة / Language")],
         ]
         if is_admin_user:
-            kb.append([InlineKeyboardButton(text="لوحة الإدارة", callback_data="mm_admin", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")])
+            kb.append([KeyboardButton(text="لوحة الإدارة")])
         elif is_vip_user:
-            kb.append([InlineKeyboardButton(text="لوحة الـ VIP", callback_data="mm_vip_panel", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")])
+            kb.append([KeyboardButton(text="لوحة الـ VIP")])
     else:
         kb = [
-            [InlineKeyboardButton(text="Send Link", callback_data="mm_send_link", icon_custom_emoji_id=EMOJI_IDS["🎰"], style="primary")],
-            [InlineKeyboardButton(text="My Account", callback_data="mm_account", icon_custom_emoji_id=EMOJI_IDS["👤"], style="primary"), InlineKeyboardButton(text="🎫 Redeem Code", callback_data="mm_redeem", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")],
-            [InlineKeyboardButton(text="Contact Us", callback_data="mm_contact", icon_custom_emoji_id=EMOJI_IDS["📞"], style="primary"), InlineKeyboardButton(text="🎥 Tutorial", callback_data="mm_tutorial", style="primary")],
-            [InlineKeyboardButton(text="اللغة / Language", callback_data="mm_lang", icon_custom_emoji_id=EMOJI_IDS["🔹"], style="primary")],
+            [KeyboardButton(text="My Account"), KeyboardButton(text="🎫 Redeem Code")],
+            [KeyboardButton(text="Contact Us"), KeyboardButton(text="🎥 Tutorial")],
+            [KeyboardButton(text="اللغة / Language")],
         ]
         if is_admin_user:
-            kb.append([InlineKeyboardButton(text="Admin Panel", callback_data="mm_admin", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")])
+            kb.append([KeyboardButton(text="Admin Panel")])
         elif is_vip_user:
-            kb.append([InlineKeyboardButton(text="VIP Panel", callback_data="mm_vip_panel", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")])
-    return InlineKeyboardMarkup(inline_keyboard=kb)
+            kb.append([KeyboardButton(text="VIP Panel")])
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 def get_vip_buttons(lang="ar"):
     settings = get_settings()
@@ -2640,7 +2638,6 @@ async def handle_free_mode_time(update: Update, context: ContextTypes.DEFAULT_TY
         return WAITING_FOR_FREE_MODE_TIME
 
 MM_MAP = {
-    "mm_send_link": ("ارسال الرابط", "Send Link"),
     "mm_account": ("حسابي", "My Account"),
     "mm_contact": ("تواصل معنا", "Contact Us"),
     "mm_lang": ("اللغة / Language", "اللغة / Language"),
@@ -2778,11 +2775,7 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     vip_perms = settings.get("vip_permissions", {})
     lang = get_user_lang(uid)
 
-    if text in ["ارسال الرابط", "Send Link"]:
-        msg = c("🔗 <b>من فضلك أرسل رابط الروليت الآن:</b>" if lang == "ar" else "🔗 <b>Please send the Roulette link now:</b>")
-        await msg_obj.reply_text(msg, parse_mode="HTML")
-        return WAITING_FOR_LINK
-    elif text in ["حسابي", "My Account"]:
+    if text in ["حسابي", "My Account"]:
         p = check_user(uid)
         if lang == "ar":
             msg = c(f"👤 <b>معلومات حسابك:</b>\n\n🆔 الأيدي: <code>{uid}</code>\n💎 نقاط الروابط: <b>{p}</b>")
@@ -3072,7 +3065,7 @@ def main():
     conv = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"^(ارسال الرابط|Send Link|حسابي|My Account|تواصل معنا|Contact Us|اللغة / Language|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|🎫 إنشاء أكواد|🎫 Generate Codes|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 فيديو شرح|🎥 Tutorial|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
+            MessageHandler(filters.Regex(r"^(حسابي|My Account|تواصل معنا|Contact Us|اللغة / Language|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|🎫 إنشاء أكواد|🎫 Generate Codes|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 فيديو شرح|🎥 Tutorial|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
             CallbackQueryHandler(main_menu_handler, pattern="^mm_"),
             CallbackQueryHandler(automation_settings_callback_handler, pattern="^set_(tabs|target|login|search|post|account|comp|batch|close|draw|claim)_")
         ],
