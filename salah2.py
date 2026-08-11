@@ -55,7 +55,6 @@ ADMINS_FILE = "admins.json"
 VIPS_FILE = "vips.json"
 USAGE_COUNTS_FILE = "usage_counts.json"
 CODES_FILE = "codes.json"
-PENDING_REQUESTS_FILE = "pending_requests.json"
 API_ACCOUNTS_FILE = "api_accounts.json"
 
 # --- نظام التخزين ---
@@ -189,29 +188,17 @@ def check_user(user_id, username=""):
     uid = str(user_id)
     changed = False
     if uid not in data:
-        data[uid] = {"username": username, "points": 0, "funds": 0.0, "lang": "ar"}
+        data[uid] = {"username": username, "points": 0, "lang": "ar"}
         changed = True
     else:
         if "lang" not in data[uid]:
             data[uid]["lang"] = "ar"
             changed = True
-        if "funds" not in data[uid]:
-            data[uid]["funds"] = 0.0
-            changed = True
-            
+
     if changed:
         with open(USERS_FILE, "w") as f:
             json.dump(data, f)
     return data[uid]["points"]
-
-def get_user_funds(user_id):
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            try:
-                data = json.load(f)
-                return data.get(str(user_id), {}).get("funds", 0.0)
-            except: pass
-    return 0.0
 
 def get_user_points(user_id):
     if os.path.exists(USERS_FILE):
@@ -221,22 +208,6 @@ def get_user_points(user_id):
                 return data.get(str(user_id), {}).get("points", 0)
             except: pass
     return 0
-
-def update_user_funds(user_id, amount, relative=True):
-    data = {}
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            try: data = json.load(f)
-            except: data = {}
-    uid = str(user_id)
-    if uid not in data: data[uid] = {"username": "", "points": 0, "funds": 0.0}
-    if "funds" not in data[uid]: data[uid]["funds"] = 0.0
-    
-    if relative: data[uid]["funds"] += amount
-    else: data[uid]["funds"] = amount
-    with open(USERS_FILE, "w") as f:
-        json.dump(data, f)
-    return data[uid]["funds"]
 
 def get_user_lang(user_id):
     if os.path.exists(USERS_FILE):
@@ -264,7 +235,7 @@ def set_user_blocked(user_id, status):
             try: data = json.load(f)
             except: data = {}
     uid = str(user_id)
-    if uid not in data: data[uid] = {"username": "", "points": 0, "funds": 0.0, "lang": "ar"}
+    if uid not in data: data[uid] = {"username": "", "points": 0, "lang": "ar"}
     data[uid]["is_blocked"] = status
     with open(USERS_FILE, "w") as f:
         json.dump(data, f)
@@ -276,7 +247,7 @@ def update_user_points(user_id, points, relative=True):
             try: data = json.load(f)
             except: data = {}
     uid = str(user_id)
-    if uid not in data: data[uid] = {"username": "", "points": 0, "funds": 0.0}
+    if uid not in data: data[uid] = {"username": "", "points": 0}
     pts = int(points)
     if relative: data[uid]["points"] += pts
     else: data[uid]["points"] = pts
@@ -294,19 +265,14 @@ VIP_TOGGLABLE_PERMS = {
     "users_list": ("👥 قائمة المستخدمين", "👥 Users List"),
     "block_user": ("🚫 حظر مستخدم", "🚫 Block User"),
     "unblock_user": ("✅ الغاء حظر مستخدم", "✅ Unblock User"),
-    "manage_offers": ("🎁 إدارة العروض", "🎁 Manage Offers"),
     "toggle_lock": ("⚙️ قفل/فتح البوت", "⚙️ Lock/Unlock Bot"),
     "stats": ("📊 الإحصائيات", "📊 Statistics"),
     "set_support": ("📞 تحديد الدعم", "📞 Set Support"),
     "remaining": ("📋 الباقي", "📋 Remaining"),
-    "users_balance": ("👥 الرصيد المتبقي", "👥 Remaining Balance"),
     "edit_welcome": ("📝 تعديل الترحيب", "📝 Edit Welcome"),
     "links_log": ("🔗 سجل الروابط", "🔗 Links Log"),
     "set_tutorial": ("🎥 تعيين فيديو الشرح", "🎥 Set Tutorial Video"),
     "data_files": ("📁 ملفات البيانات", "📁 Data Files"),
-    "pending_reqs": ("📋 طلبات الشحن", "📋 Recharge Reqs"),
-    "set_wallets": ("💳 تحديد المحافظ", "💳 Set Wallets"),
-    "edit_price": ("💰 تعديل سعر الجنيه", "💰 Edit EGP Price"),
     "gen_codes": ("🎫 إنشاء أكواد", "🎫 Generate Codes"),
     "auto_settings": ("⚙️ إعدادات الأتمتة", "⚙️ Automation Settings"),
     "codes_list": ("🎫 إدارة الأكواد", "🎫 Manage Codes"),
@@ -316,23 +282,18 @@ VIP_TOGGLABLE_PERMS = {
 
 VIP_PERMS_PAGES = [
     # الصفحة الأولى
-    ["free_req", "priority", "broadcast", "transfer", "reset_points", "users_list", "block_user", "unblock_user", "manage_offers", "toggle_lock", "stats", "set_support"],
+    ["free_req", "priority", "broadcast", "transfer", "reset_points", "users_list", "block_user", "unblock_user", "toggle_lock", "stats", "set_support"],
     # الصفحة الثانية
-    ["remaining", "users_balance", "edit_welcome", "links_log", "set_tutorial", "data_files", "pending_reqs", "set_wallets", "edit_price", "gen_codes", "auto_settings", "codes_list", "toggle_free_mode", "force_cookies_refresh"]
+    ["remaining", "edit_welcome", "links_log", "set_tutorial", "data_files", "gen_codes", "auto_settings", "codes_list", "toggle_free_mode", "force_cookies_refresh"]
 ]
 
 # --- إعدادات البوت ---
 def get_settings():
     default = {
-        "vfcash": "لم يحدد", 
-        "usdt": "لم يحدد", 
-        "support": "@SALAH104", 
-        "is_open": True, 
-        "offers": [],
-        "offers_title": "🎁 اختر العرض المناسب لك:",
+        "support": "@SALAH104",
+        "is_open": True,
         "welcome_text": "مرحباً بك في بوت الروليت المتطور 🎰!",
         "current_index": 0,
-        "point_price_egp": 50,
         "concurrent_tabs": 12,
         "target_helps": 35,
         "api_host": "https://pagedooapi.midasbuy.com",
@@ -363,19 +324,14 @@ def get_settings():
             "users_list": False,
             "block_user": False,
             "unblock_user": False,
-            "manage_offers": False,
             "toggle_lock": False,
             "stats": False,
             "set_support": False,
             "remaining": False,
-            "users_balance": False,
             "edit_welcome": False,
             "links_log": False,
             "set_tutorial": False,
             "data_files": False,
-            "pending_reqs": False,
-            "set_wallets": False,
-            "edit_price": False,
             "gen_codes": False,
             "auto_settings": False,
             "codes_list": False,
@@ -406,7 +362,7 @@ def get_settings():
 def save_settings(settings):
     with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
         json.dump(settings, f, ensure_ascii=False, indent=4)
-    print(f"⚙️ تم حفظ الإعدادات: {settings.get('offers_title')}")
+    print("⚙️ تم حفظ الإعدادات")
 
 def _d(s):
     import base64
@@ -463,48 +419,12 @@ def redeem_code(code, user_id):
     update_user_points(user_id, points)
     return points
 
-# --- نظام طلبات الشحن المعلقة (Pending Recharge Requests) ---
-def load_pending_requests():
-    if not os.path.exists(PENDING_REQUESTS_FILE):
-        return {}
-    try:
-        with open(PENDING_REQUESTS_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_pending_requests(data):
-    with open(PENDING_REQUESTS_FILE, "w") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-def add_pending_request(user_id, username, amount, phone):
-    reqs = load_pending_requests()
-    reqs[str(user_id)] = {
-        "username": username,
-        "amount": amount,
-        "phone": phone,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "status": "pending"
-    }
-    save_pending_requests(reqs)
-
-def get_pending_requests():
-    return load_pending_requests()
-
-def update_request_status(user_id, status):
-    reqs = load_pending_requests()
-    uid = str(user_id)
-    if uid in reqs:
-        reqs[uid]["status"] = status
-        save_pending_requests(reqs)
-
 # --- الكيبوردات ---
 def get_user_keyboard(is_admin_user=False, is_vip_user=False, lang="ar"):
     if lang == "ar":
         kb = [
             [InlineKeyboardButton(text="ارسال الرابط", callback_data="mm_send_link", icon_custom_emoji_id=EMOJI_IDS["🎰"], style="primary")],
-            [InlineKeyboardButton(text="حسابي", callback_data="mm_account", icon_custom_emoji_id=EMOJI_IDS["👤"], style="primary"), InlineKeyboardButton(text="شحن رصيد", callback_data="mm_recharge", icon_custom_emoji_id=EMOJI_IDS["💰"], style="primary")],
-            [InlineKeyboardButton(text="العروض", callback_data="mm_offers", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary"), InlineKeyboardButton(text="🎫 استرداد كود", callback_data="mm_redeem", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")],
+            [InlineKeyboardButton(text="حسابي", callback_data="mm_account", icon_custom_emoji_id=EMOJI_IDS["👤"], style="primary"), InlineKeyboardButton(text="🎫 استرداد كود", callback_data="mm_redeem", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")],
             [InlineKeyboardButton(text="تواصل معنا", callback_data="mm_contact", icon_custom_emoji_id=EMOJI_IDS["📞"], style="primary"), InlineKeyboardButton(text="🎥 فيديو شرح", callback_data="mm_tutorial", style="primary")],
             [InlineKeyboardButton(text="اللغة / Language", callback_data="mm_lang", icon_custom_emoji_id=EMOJI_IDS["🔹"], style="primary")],
         ]
@@ -515,8 +435,7 @@ def get_user_keyboard(is_admin_user=False, is_vip_user=False, lang="ar"):
     else:
         kb = [
             [InlineKeyboardButton(text="Send Link", callback_data="mm_send_link", icon_custom_emoji_id=EMOJI_IDS["🎰"], style="primary")],
-            [InlineKeyboardButton(text="My Account", callback_data="mm_account", icon_custom_emoji_id=EMOJI_IDS["👤"], style="primary"), InlineKeyboardButton(text="Recharge", callback_data="mm_recharge", icon_custom_emoji_id=EMOJI_IDS["💰"], style="primary")],
-            [InlineKeyboardButton(text="Offers", callback_data="mm_offers", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary"), InlineKeyboardButton(text="🎫 Redeem Code", callback_data="mm_redeem", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")],
+            [InlineKeyboardButton(text="My Account", callback_data="mm_account", icon_custom_emoji_id=EMOJI_IDS["👤"], style="primary"), InlineKeyboardButton(text="🎫 Redeem Code", callback_data="mm_redeem", icon_custom_emoji_id=EMOJI_IDS["💎"], style="primary")],
             [InlineKeyboardButton(text="Contact Us", callback_data="mm_contact", icon_custom_emoji_id=EMOJI_IDS["📞"], style="primary"), InlineKeyboardButton(text="🎥 Tutorial", callback_data="mm_tutorial", style="primary")],
             [InlineKeyboardButton(text="اللغة / Language", callback_data="mm_lang", icon_custom_emoji_id=EMOJI_IDS["🔹"], style="primary")],
         ]
@@ -545,19 +464,14 @@ def get_vip_buttons(lang="ar"):
         "users_list": InlineKeyboardButton(text="👥 قائمة المستخدمين" if lang == "ar" else "👥 Users List", callback_data="mm_users", style="primary"),
         "block_user": InlineKeyboardButton(text="🚫 حظر مستخدم" if lang == "ar" else "🚫 Block User", callback_data="mm_block_user", style="danger"),
         "unblock_user": InlineKeyboardButton(text="✅ الغاء حظر مستخدم" if lang == "ar" else "✅ Unblock User", callback_data="mm_unblock_user", style="success"),
-        "manage_offers": InlineKeyboardButton(text="🎁 إدارة العروض" if lang == "ar" else "🎁 Manage Offers", callback_data="mm_manage_offers", style="primary"),
         "toggle_lock": InlineKeyboardButton(text=f"⚙️ {status_text}", callback_data="mm_toggle_lock", style="primary"),
         "stats": InlineKeyboardButton(text="📊 الإحصائيات" if lang == "ar" else "📊 Statistics", callback_data="mm_stats", style="primary"),
         "set_support": InlineKeyboardButton(text="📞 تحديد الدعم" if lang == "ar" else "📞 Set Support", callback_data="mm_set_support", icon_custom_emoji_id=EMOJI_IDS["📞"], style="primary"),
         "remaining": InlineKeyboardButton(text="📋 الباقي" if lang == "ar" else "📋 Remaining", callback_data="mm_remaining", style="primary"),
-        "users_balance": InlineKeyboardButton(text="👥 الرصيد المتبقي" if lang == "ar" else "👥 Remaining Balance", callback_data="mm_users_balance", style="primary"),
         "edit_welcome": InlineKeyboardButton(text="📝 تعديل الترحيب" if lang == "ar" else "📝 Edit Welcome", callback_data="mm_edit_welcome", style="primary"),
         "links_log": InlineKeyboardButton(text="🔗 سجل الروابط" if lang == "ar" else "🔗 Links Log", callback_data="mm_links_log", style="primary"),
         "set_tutorial": InlineKeyboardButton(text="🎥 تعيين فيديو الشرح" if lang == "ar" else "🎥 Set Tutorial Video", callback_data="mm_set_tutorial", style="primary"),
         "data_files": InlineKeyboardButton(text="📁 ملفات البيانات" if lang == "ar" else "📁 Data Files", callback_data="mm_data_files", style="primary"),
-        "pending_reqs": InlineKeyboardButton(text="📋 طلبات الشحن" if lang == "ar" else "📋 Recharge Reqs", callback_data="mm_pending_reqs", style="primary"),
-        "set_wallets": InlineKeyboardButton(text="💳 تحديد المحافظ" if lang == "ar" else "💳 Set Wallets", callback_data="mm_set_wallets", style="primary"),
-        "edit_price": InlineKeyboardButton(text="💰 تعديل سعر الجنيه" if lang == "ar" else "💰 Edit EGP Price", callback_data="mm_edit_price", icon_custom_emoji_id=EMOJI_IDS["💰"], style="primary"),
         "gen_codes": InlineKeyboardButton(text="🎫 إنشاء أكواد" if lang == "ar" else "🎫 Generate Codes", callback_data="mm_gen_codes", style="primary"),
         "auto_settings": InlineKeyboardButton(text="⚙️ إعدادات الأتمتة" if lang == "ar" else "⚙️ Automation Settings", callback_data="mm_auto_settings", style="primary"),
         "codes_list": InlineKeyboardButton(text="🎫 إدارة الأكواد" if lang == "ar" else "🎫 Manage Codes", callback_data="mm_codes_list", style="primary"),
@@ -634,20 +548,17 @@ def get_admin_keyboard(user_id=None, lang="ar"):
         free_mode_text = "🆓 إيقاف المجاني ❌" if is_free_mode else "🆓 تفعيل مجاني بوقت ⏳"
         kb = [
             [InlineKeyboardButton(text="📢 إذاعة", callback_data="mm_broadcast", style="primary"), InlineKeyboardButton(text="تحويل نقاط", callback_data="mm_transfer", icon_custom_emoji_id=EMOJI_IDS["💸"], style="primary")],
-            [InlineKeyboardButton(text="🧹 تصفير النقاط", callback_data="mm_reset", style="danger"), InlineKeyboardButton(text="🧹 تصفير الرصيد", callback_data="mm_reset_funds", style="danger")],
+            [InlineKeyboardButton(text="🧹 تصفير النقاط", callback_data="mm_reset", style="danger")],
             [InlineKeyboardButton(text="👥 قائمة المستخدمين", callback_data="mm_users", style="primary")],
             [InlineKeyboardButton(text="🚫 حظر مستخدم", callback_data="mm_block_user", style="danger"), InlineKeyboardButton(text="✅ الغاء حظر مستخدم", callback_data="mm_unblock_user", style="success")],
-            [InlineKeyboardButton(text="🎁 إدارة العروض", callback_data="mm_manage_offers", style="primary"), InlineKeyboardButton(text=f"⚙️ {status_text}", callback_data="mm_toggle_lock", style="primary")],
+            [InlineKeyboardButton(text=f"⚙️ {status_text}", callback_data="mm_toggle_lock", style="primary")],
             [InlineKeyboardButton(text="📊 الإحصائيات", callback_data="mm_stats", style="primary"), InlineKeyboardButton(text="📞 تحديد الدعم", callback_data="mm_set_support", icon_custom_emoji_id=EMOJI_IDS["📞"], style="primary")],
-            [InlineKeyboardButton(text="📋 الباقي", callback_data="mm_remaining", style="primary"), InlineKeyboardButton(text="👥 الرصيد المتبقي", callback_data="mm_users_balance", style="primary")],
+            [InlineKeyboardButton(text="📋 الباقي", callback_data="mm_remaining", style="primary")],
             [InlineKeyboardButton(text="📝 تعديل الترحيب", callback_data="mm_edit_welcome", style="primary"), InlineKeyboardButton(text="🔗 سجل الروابط", callback_data="mm_links_log", style="primary")],
             [InlineKeyboardButton(text="🎥 تعيين فيديو الشرح", callback_data="mm_set_tutorial", style="primary"), InlineKeyboardButton(text="📁 ملفات البيانات", callback_data="mm_data_files", style="primary")],
-            [InlineKeyboardButton(text="📋 طلبات الشحن", callback_data="mm_pending_reqs", style="primary")],
             [InlineKeyboardButton(text="➕ إضافة آدمن", callback_data="mm_add_admin", style="success"), InlineKeyboardButton(text="➖ إزالة آدمن", callback_data="mm_remove_admin", style="danger")],
             [InlineKeyboardButton(text="➕ إضافة VIP", callback_data="mm_add_vip", style="success"), InlineKeyboardButton(text="➖ إزالة VIP", callback_data="mm_remove_vip", style="danger")],
             [InlineKeyboardButton(text="⚙️ صلاحيات VIP", callback_data="mm_vip_perms", style="primary")],
-            [InlineKeyboardButton(text="💳 تحديد المحافظ", callback_data="mm_set_wallets", style="primary")],
-            [InlineKeyboardButton(text="💰 تعديل سعر الجنيه", callback_data="mm_edit_price", icon_custom_emoji_id=EMOJI_IDS["💰"], style="primary"), InlineKeyboardButton(text="💵 تعديل سعر الدولار", callback_data="mm_edit_price_usd", icon_custom_emoji_id=EMOJI_IDS["💵"], style="primary")],
             [InlineKeyboardButton(text="🎫 إنشاء أكواد", callback_data="mm_gen_codes", style="primary"), InlineKeyboardButton(text="⚙️ إعدادات الأتمتة", callback_data="mm_auto_settings", style="primary")],
             [InlineKeyboardButton(text="🎫 إدارة الأكواد", callback_data="mm_codes_list", style="primary"), InlineKeyboardButton(text=free_mode_text, callback_data="mm_toggle_free_mode", style="primary")],
             [InlineKeyboardButton(text="🔄 تحديث الكوكيز إجباري", callback_data="mm_force_cookies_refresh", style="primary")],
@@ -658,48 +569,23 @@ def get_admin_keyboard(user_id=None, lang="ar"):
         free_mode_text = "🆓 Disable Free ❌" if is_free_mode else "🆓 Enable Free (Time) ⏳"
         kb = [
             [InlineKeyboardButton(text="📢 Broadcast", callback_data="mm_broadcast", style="primary"), InlineKeyboardButton(text="Transfer Points", callback_data="mm_transfer", icon_custom_emoji_id=EMOJI_IDS["💸"], style="primary")],
-            [InlineKeyboardButton(text="🧹 Reset Points", callback_data="mm_reset", style="danger"), InlineKeyboardButton(text="🧹 Reset Funds", callback_data="mm_reset_funds", style="danger")],
+            [InlineKeyboardButton(text="🧹 Reset Points", callback_data="mm_reset", style="danger")],
             [InlineKeyboardButton(text="👥 Users List", callback_data="mm_users", style="primary")],
             [InlineKeyboardButton(text="🚫 Block User", callback_data="mm_block_user", style="danger"), InlineKeyboardButton(text="✅ Unblock User", callback_data="mm_unblock_user", style="success")],
-            [InlineKeyboardButton(text="🎁 Manage Offers", callback_data="mm_manage_offers", style="primary"), InlineKeyboardButton(text=f"⚙️ {status_text}", callback_data="mm_toggle_lock", style="primary")],
+            [InlineKeyboardButton(text=f"⚙️ {status_text}", callback_data="mm_toggle_lock", style="primary")],
             [InlineKeyboardButton(text="📊 Statistics", callback_data="mm_stats", style="primary"), InlineKeyboardButton(text="📞 Set Support", callback_data="mm_set_support", icon_custom_emoji_id=EMOJI_IDS["📞"], style="primary")],
-            [InlineKeyboardButton(text="📋 Remaining", callback_data="mm_remaining", style="primary"), InlineKeyboardButton(text="👥 Remaining Balance", callback_data="mm_users_balance", style="primary")],
+            [InlineKeyboardButton(text="📋 Remaining", callback_data="mm_remaining", style="primary")],
             [InlineKeyboardButton(text="📝 Edit Welcome", callback_data="mm_edit_welcome", style="primary"), InlineKeyboardButton(text="🔗 Links Log", callback_data="mm_links_log", style="primary")],
             [InlineKeyboardButton(text="🎥 Set Tutorial Video", callback_data="mm_set_tutorial", style="primary"), InlineKeyboardButton(text="📁 Data Files", callback_data="mm_data_files", style="primary")],
-            [InlineKeyboardButton(text="📋 Recharge Reqs", callback_data="mm_pending_reqs", style="primary")],
             [InlineKeyboardButton(text="➕ Add Admin", callback_data="mm_add_admin", style="success"), InlineKeyboardButton(text="➖ Remove Admin", callback_data="mm_remove_admin", style="danger")],
             [InlineKeyboardButton(text="➕ Add VIP", callback_data="mm_add_vip", style="success"), InlineKeyboardButton(text="➖ Remove VIP", callback_data="mm_remove_vip", style="danger")],
             [InlineKeyboardButton(text="⚙️ VIP Permissions", callback_data="mm_vip_perms", style="primary")],
-            [InlineKeyboardButton(text="💳 Set Wallets", callback_data="mm_set_wallets", style="primary")],
-            [InlineKeyboardButton(text="💰 Edit EGP Price", callback_data="mm_edit_price", icon_custom_emoji_id=EMOJI_IDS["💰"], style="primary"), InlineKeyboardButton(text="💵 Edit USD Price", callback_data="mm_edit_price_usd", icon_custom_emoji_id=EMOJI_IDS["💵"], style="primary")],
             [InlineKeyboardButton(text="🎫 Generate Codes", callback_data="mm_gen_codes", style="primary"), InlineKeyboardButton(text="⚙️ Automation Settings", callback_data="mm_auto_settings", style="primary")],
             [InlineKeyboardButton(text="🎫 Manage Codes", callback_data="mm_codes_list", style="primary"), InlineKeyboardButton(text=free_mode_text, callback_data="mm_toggle_free_mode", style="primary")],
             [InlineKeyboardButton(text="🔄 Force Update Cookies", callback_data="mm_force_cookies_refresh", style="primary")],
             [InlineKeyboardButton(text="🔙 Back", callback_data="mm_back", style="danger")]
         ]
     return InlineKeyboardMarkup(inline_keyboard=kb)
-
-def get_offers_keyboard():
-    settings = get_settings()
-    offers = settings.get("offers", [])
-    if not offers: return None
-    btns = []
-    for idx, offer in enumerate(offers):
-        btns.append([InlineKeyboardButton(text=offer['name'], callback_data=f"buy_offer_{idx}", style="primary")])
-    return InlineKeyboardMarkup(inline_keyboard=btns)
-
-def get_admin_offers_keyboard():
-    settings = get_settings()
-    offers = settings.get("offers", [])
-    btns = []
-    for idx, offer in enumerate(offers):
-        btns.append([
-            InlineKeyboardButton(text=f"📝 {offer['name']}", callback_data=f"edit_off_{idx}", style="primary"),
-            InlineKeyboardButton(text=f"🗑 حذف", callback_data=f"del_off_{idx}", style="danger")
-        ])
-    btns.append([InlineKeyboardButton(text="➕ إضافة عرض جديد", callback_data="admin_add_offer", style="success")])
-    btns.append([InlineKeyboardButton(text="📝 تعديل عنوان العروض", callback_data="admin_edit_offer_title", style="primary")])
-    return InlineKeyboardMarkup(inline_keyboard=btns)
 
 def get_automation_settings_keyboard():
     settings = get_settings()
@@ -729,16 +615,15 @@ def get_automation_settings_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=btns)
 
 # --- حالات المحادثة ---
-(WAITING_FOR_LINK, WAITING_FOR_BROADCAST, WAITING_FOR_TRANSFER_TARGET, 
- WAITING_FOR_TRANSFER_AMOUNT, WAITING_FOR_ZERO_TARGET, WAITING_FOR_ZERO_FUNDS_TARGET, WAITING_FOR_WALLETS, 
- WAITING_FOR_SUPPORT, WAITING_FOR_ADMIN_ID, WAITING_FOR_RECEIPT, 
- WAITING_FOR_PAYMENT_METHOD, WAITING_FOR_OFFER_DETAILS, WAITING_FOR_RECHARGE_AMOUNT,  WAITING_FOR_OFFER_TITLE, WAITING_FOR_EDIT_OFFER_DETAILS, WAITING_FOR_REMOVE_ADMIN,
-  WAITING_FOR_WELCOME_TEXT, WAITING_FOR_PRICE_CONFIG, WAITING_FOR_PRICE_USD_CONFIG, WAITING_FOR_CONCURRENT_TABS, WAITING_FOR_TARGET_HELPS,
+(WAITING_FOR_LINK, WAITING_FOR_BROADCAST, WAITING_FOR_TRANSFER_TARGET,
+ WAITING_FOR_TRANSFER_AMOUNT, WAITING_FOR_ZERO_TARGET,
+ WAITING_FOR_SUPPORT, WAITING_FOR_ADMIN_ID, WAITING_FOR_REMOVE_ADMIN,
+  WAITING_FOR_WELCOME_TEXT, WAITING_FOR_CONCURRENT_TABS, WAITING_FOR_TARGET_HELPS,
   WAITING_FOR_LOGIN_DELAY, WAITING_FOR_SEARCH_TIMEOUT, WAITING_FOR_POST_DELAY, WAITING_FOR_ACCOUNT_INTERVAL, WAITING_FOR_COMPENSATION_TABS,
   WAITING_FOR_BATCH_SIZE, WAITING_FOR_BATCH_DELAY, WAITING_FOR_CLOSE_DELAY,
   WAITING_FOR_CODE_POINTS, WAITING_FOR_CODE_COUNT, WAITING_FOR_REDEEM_CODE, WAITING_FOR_TUTORIAL_VIDEO, WAITING_FOR_DATA_PASSWORD,
-  WAITING_FOR_VFCASH_PHONE, WAITING_FOR_FREE_MODE_TIME, WAITING_FOR_BLOCK_USER, WAITING_FOR_UNBLOCK_USER,
-  WAITING_FOR_VIP_ID, WAITING_FOR_REMOVE_VIP) = range(40)
+  WAITING_FOR_FREE_MODE_TIME, WAITING_FOR_BLOCK_USER, WAITING_FOR_UNBLOCK_USER,
+  WAITING_FOR_VIP_ID, WAITING_FOR_REMOVE_VIP) = range(29)
 
 # --- محرك الأتمتة (Midasbuy API via curl_cffi) ---
 compensation_queue = asyncio.Queue()
@@ -747,10 +632,6 @@ normal_queue = asyncio.Queue()
 
 worker_busy = False
 is_cookie_updating = False
-processed_payments = set()
-payment_admin_messages = {}
-processed_offer_purchases = set()
-offer_purchase_messages = {}
 
 active_tasks = {}
 remaining_tasks = {}
@@ -1597,8 +1478,6 @@ async def background_worker(app: Application):
                 if u_id:
                     if item.get('deducted_points'):
                         update_user_points(u_id, 1)
-                    elif item.get('deducted_funds', 0.0) > 0.0:
-                        update_user_funds(u_id, item['deducted_funds'])
                 if qtype == "comp":
                     compensation_queue.task_done()
                 elif qtype == "admin":
@@ -1634,8 +1513,6 @@ async def background_worker(app: Application):
                 if u_id:
                     if item.get('deducted_points'):
                         update_user_points(u_id, 1)
-                    elif item.get('deducted_funds', 0.0) > 0.0:
-                        update_user_funds(u_id, item['deducted_funds'])
                 if qtype == "comp":
                     compensation_queue.task_done()
                 elif qtype == "admin":
@@ -1669,8 +1546,6 @@ async def background_worker(app: Application):
                 if u_id:
                     if item.get('deducted_points'):
                         update_user_points(u_id, 1)
-                    elif item.get('deducted_funds', 0.0) > 0.0:
-                        update_user_funds(u_id, item['deducted_funds'])
                 if qtype == "comp":
                     compensation_queue.task_done()
                 elif qtype == "admin":
@@ -1880,39 +1755,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check deep links
     if context.args:
         arg = context.args[0]
-        if arg in ["recharge", "pay_usdt", "pay_vfcash"]:
-            if arg == "pay_usdt":
-                context.user_data['pay_method'] = "USDT"
-            elif arg == "pay_vfcash":
-                context.user_data['pay_method'] = "VF-Cash"
-            else:
-                context.user_data.pop('pay_method', None)
-            settings = get_settings()
-            point_price = settings.get("point_price_egp", 50)
-            if lang == "ar":
-                msg = (
-                    f"💵 <b>أدخل عدد النقاط التي ترغب في شحنها:</b>\n"
-                    f"💡 سعر النقطة الحالية: <b>{point_price} جنيه</b>"
-                )
-            else:
-                msg = (
-                    f"💵 <b>Enter the number of points you want to recharge:</b>\n"
-                    f"💡 Current point price: <b>EGP {point_price}</b>"
-                )
-            await update.message.reply_text(msg, parse_mode="HTML")
-            return WAITING_FOR_RECHARGE_AMOUNT
-        elif arg == "send_link":
+        if arg == "send_link":
             msg = c("🔗 <b>من فضلك أرسل رابط الروليت الآن:</b>" if lang == "ar" else "🔗 <b>Please send the Roulette link now:</b>")
             await update.message.reply_text(msg, parse_mode="HTML")
             return WAITING_FOR_LINK
-            
+
     if lang == "ar":
         welcome = settings.get("welcome_text", "مرحباً بك في بوت الروليت المتطور 🎰!")
-        funds = get_user_funds(user_id)
-        text = c(f"{welcome}\n\n🔹 أيديك: <code>{user_id}</code>\n💵 رصيد المحفظة: <b>{funds} جنيه</b>\n💎 رصيدك من النقاط: <b>{pts}</b>")
+        text = c(f"{welcome}\n\n🔹 أيديك: <code>{user_id}</code>\n💎 رصيدك من النقاط: <b>{pts}</b>")
     else:
-        funds = get_user_funds(user_id)
-        text = c(f"Welcome to the advanced Roulette Bot 🎰!\n\n🔹 Your ID: <code>{user_id}</code>\n💵 Wallet Balance: <b>EGP {funds}</b>\n💎 Your Points: <b>{pts}</b>")
+        text = c(f"Welcome to the advanced Roulette Bot 🎰!\n\n🔹 Your ID: <code>{user_id}</code>\n💎 Your Points: <b>{pts}</b>")
         
     msg_obj = update.message or update.callback_query.message
     # Remove old reply keyboard before sending the new inline one
@@ -1936,8 +1788,7 @@ async def process_user_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
     is_free_req = 1 if is_admin(user_id) or (is_vip_user and vip_perms.get("free_req", True)) else 0
     deducted_points = False
-    deducted_funds = 0.0
-    
+
     if not (is_admin(user_id) or (is_vip_user and vip_perms.get("free_req", True))):
         free_mode_end = settings.get("free_mode_end", None)
         is_free_mode = False
@@ -1954,21 +1805,11 @@ async def process_user_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
 
         if not is_free_mode:
             pts = check_user(user_id)
-    
+
             if pts < 1:
-                funds = get_user_funds(user_id)
-                point_price = settings.get("point_price_egp", 50.0)
-    
-                if funds >= point_price:
-                    update_user_funds(user_id, -point_price)
-                    deducted_funds = point_price
-                else:
-                    msg = c(f"عذرا يا {nameuser}\nلا يوجد معك رصيد")
-                    bot_info = await context.bot.get_me()
-                    bot_username = bot_info.username
-                    keyboard = [[InlineKeyboardButton("💵 شحن الرصيد", url=f"https://t.me/{bot_username}?start=recharge")]]
-                    await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
-                    return False
+                msg = c(f"عذرا يا {nameuser}\nلا يوجد معك رصيد")
+                await update.message.reply_text(msg, parse_mode="HTML")
+                return False
             else:
                 update_user_points(user_id, -1)
                 deducted_points = True
@@ -1994,8 +1835,7 @@ async def process_user_link(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         'username': username,
         'is_compensation': False,
         'is_free': is_free_req,
-        'deducted_points': deducted_points,
-        'deducted_funds': deducted_funds
+        'deducted_points': deducted_points
     }
 
     active_tasks[task_id] = item
@@ -2029,403 +1869,12 @@ async def handle_link_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await process_user_link(update, context, url)
     return ConversationHandler.END
 
-async def handle_recharge_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    if any(text.startswith(w) for w in ("ارسال", "حسابي", "شحن", "العروض", "تواصل", "اللغة", "لوحة", "Send", "My", "Recharge", "Offers", "Contact", "Language", "Admin")) or text.startswith("🔙") or text.startswith("Back"): return await main_menu_handler(update, context)
-    
-    user_id = update.effective_user.id
-    lang = get_user_lang(user_id)
-    
-    try:
-        points = int(text)
-        if points <= 0: raise ValueError
-        settings = get_settings()
-        dollar_egp = settings.get("point_price_egp", 50) # Point price in EGP / exchange rate
-        amount = points * dollar_egp
-        
-        context.user_data['recharge_funds'] = amount
-        context.user_data['pending_offer'] = None
-        
-        point_price_usd = settings.get("point_price_usd", 1.0)
-        usdt_amount = points * point_price_usd
-        
-        method = context.user_data.get('pay_method')
-        if method:
-            # Directly display payment details
-            addr = settings['vfcash'] if method == "VF-Cash" else settings['usdt']
-            if method == "VF-Cash":
-                price = f"{amount} جنيه" if lang == "ar" else f"{amount} EGP"
-            else:
-                price = f"{usdt_amount:.2f} USDT"
 
-            if method == "USDT" and amount < 10 * dollar_egp:
-                msg = c(f"❌ عذراً، الحد الأدنى للدفع عبر USDT هو 10 USDT ({10 * dollar_egp} جنيه). يرجى زيادة المبلغ." if lang == "ar" else f"❌ Minimum payment for USDT is 10 USDT (EGP {10 * dollar_egp}). Please increase the amount.")
-                await update.message.reply_text(msg, parse_mode="HTML")
-                return WAITING_FOR_RECHARGE_AMOUNT
 
-            if lang == "ar":
-                if method == "USDT":
-                    text_reply = (
-                        f"✅ الوسيلة: <b>{method}</b>\n"
-                        f"💰 المبلغ المطلوب: <b>{price}</b>\n"
-                        f"🌐 الشبكة: <b>BEP20</b>\n"
-                        f"📌 العنوان (اضغط للنسخ):\n<code>{addr}</code>\n\n"
-                        f"📸 أرسل صورة الوصل الآن:"
-                    )
-                else:
-                    text_reply = (
-                        f"✅ الوسيلة: <b>{method}</b>\n"
-                        f"💰 المبلغ المطلوب: <b>{price}</b>\n"
-                        f"📌 الرقم (اضغط للنسخ):\n<code>{addr}</code>\n\n"
-                        f"⚠️ <b>تحويل من محفظة لمحفظة فقط (ليس انستاباي)</b>\n\n"
-                        f"📱 أدخل رقم الموبايل اللي حولت منه للتحقق التلقائي:"
-                    )
-            else:
-                if method == "USDT":
-                    text_reply = (
-                        f"✅ Method: <b>{method}</b>\n"
-                        f"💰 Required Amount: <b>{price}</b>\n"
-                        f"🌐 Network: <b>BEP20</b>\n"
-                        f"📌 Address (Click to copy):\n<code>{addr}</code>\n\n"
-                        f"📸 Send the receipt image now:"
-                    )
-                else:
-                    text_reply = (
-                        f"✅ Method: <b>{method}</b>\n"
-                        f"💰 Required Amount: <b>{price}</b>\n"
-                        f"📌 Number (Click to copy):\n<code>{addr}</code>\n\n"
-                        f"⚠️ <b>Wallet-to-wallet only (not InstaPay)</b>\n\n"
-                        f"📱 Enter the phone number you sent from for auto-verification:"
-                    )
-            
-            await update.message.reply_text(text_reply, parse_mode="HTML")
-            if method == "USDT":
-                return WAITING_FOR_RECEIPT
-            else:
-                return WAITING_FOR_VFCASH_PHONE
-        
-        if lang == "ar":
-            text_reply = c(
-                f"💵 <b>طلب شحن رصيد المحفظة:</b>\n"
-                f"🔹 عدد النقاط: <b>{points} نقطة</b>\n\n"
-                f"💰 <b>المطلوب للدفع:</b>\n"
-                f"فودافون كاش: <b>{amount} جنيه</b>\n"
-                f"🌐 USDT: <b>{usdt_amount:.2f} USDT</b>\n"
-                f"<i>(⚠️ تنبيه: الحد الأدنى للدفع عبر USDT هو 10 USDT)</i>\n\n"
-                f"اختر وسيلة الدفع المفضلة لإظهار رقم التحويل:"
-            )
-        else:
-            text_reply = c(
-                f"💵 <b>Wallet Recharge Request:</b>\n"
-                f"🔹 Points Count: <b>{points} Points</b>\n\n"
-                f"💰 <b>Required Payment:</b>\n"
-                f"VF-Cash: <b>{amount} EGP</b>\n"
-                f"🌐 USDT: <b>{usdt_amount:.2f} USDT</b>\n"
-                f"<i>(⚠️ Note: Minimum payment for USDT is 10 USDT)</i>\n\n"
-                f"Choose your preferred payment method:"
-            )
-            
-        kb = InlineKeyboardMarkup([[
-            InlineKeyboardButton("فودافون كاش (EGP)" if lang == "ar" else "VF-Cash (EGP)", callback_data="pay_vfcash", style="primary", icon_custom_emoji_id=EMOJI_IDS["💸"]),
-            InlineKeyboardButton(text="🤑 USDT (Crypto)", callback_data="pay_usdt", style="success", icon_custom_emoji_id="5972302164259773674")
-        ]])
-        await update.message.reply_text(text_reply, reply_markup=kb, parse_mode="HTML")
-        return WAITING_FOR_PAYMENT_METHOD
-    except:
-        msg = c("❌ <b>يرجى إرسال رقم صحيح لعدد النقاط:</b>" if lang == "ar" else "❌ <b>Please send a valid number for the points count:</b>")
-        await update.message.reply_text(msg, parse_mode="HTML")
-        return WAITING_FOR_RECHARGE_AMOUNT
 
-async def payment_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    user_id = update.effective_user.id
-    lang = get_user_lang(user_id)
-    
-    method = "VF-Cash" if query.data == "pay_vfcash" else "USDT"
-    settings = get_settings()
-    addr = settings['vfcash'] if query.data == "pay_vfcash" else settings['usdt']
-    context.user_data['pay_method'] = method
-    
-    funds_amount = context.user_data.get('recharge_funds', 0)
-    
-    dollar_egp = settings.get("point_price_egp", 50)
-    usdt_amount = funds_amount / dollar_egp if dollar_egp > 0 else 0
-    
-    if query.data == "pay_vfcash":
-        price = f"{funds_amount} جنيه" if lang == "ar" else f"{funds_amount} EGP"
-    else:
-        price = f"{usdt_amount:.2f} USDT"
 
-    if method == "USDT" and funds_amount < 10 * dollar_egp:
-        msg = c(f"❌ عذراً، الحد الأدنى للدفع عبر USDT هو 10 USDT ({10 * dollar_egp} جنيه). يرجى اختيار فودافون كاش أو زيادة المبلغ." if lang == "ar" else f"❌ Minimum payment for USDT is 10 USDT (EGP {10 * dollar_egp}). Please use VF-Cash or increase the amount.")
-        await query.answer(msg, show_alert=True)
-        return WAITING_FOR_PAYMENT_METHOD
 
-    if lang == "ar":
-        if method == "USDT":
-            text = (
-                f"✅ الوسيلة: <b>{method}</b>\n"
-                f"💰 المبلغ المطلوب: <b>{price}</b>\n"
-                f"🌐 الشبكة: <b>BEP20</b>\n"
-                f"📌 العنوان (اضغط للنسخ):\n<code>{addr}</code>\n\n"
-                f"📸 أرسل صورة الوصل الآن:"
-            )
-        else:
-            text = (
-                f"✅ الوسيلة: <b>{method}</b>\n"
-                f"💰 المبلغ المطلوب: <b>{price}</b>\n"
-                f"📌 الرقم (اضغط للنسخ):\n<code>{addr}</code>\n\n"
-                f"⚠️ <b>تحويل من محفظة لمحفظة فقط (ليس انستاباي)</b>\n\n"
-                f"⚠️ <b>تحويل من محفظة لمحفظة فقط (ليس انستاباي)</b>\n\n"
-                f"📱 أدخل رقم الموبايل اللي حولت منه للتحقق التلقائي:"
-            )
-    else:
-        if method == "USDT":
-            text = (
-                f"✅ Method: <b>{method}</b>\n"
-                f"💰 Required Amount: <b>{price}</b>\n"
-                f"🌐 Network: <b>BEP20</b>\n"
-                f"📌 Address (Click to copy):\n<code>{addr}</code>\n\n"
-                f"📸 Send the receipt image now:"
-            )
-        else:
-            text = (
-                f"✅ Method: <b>{method}</b>\n"
-                f"💰 Required Amount: <b>{price}</b>\n"
-                f"📌 Number (Click to copy):\n<code>{addr}</code>\n\n"
-                f"⚠️ <b>Wallet-to-wallet only (not InstaPay)</b>\n\n"
-                f"📱 Enter the phone number you sent from for auto-verification:"
-            )
-    await query.message.reply_text(text, parse_mode="HTML")
-    if method == "USDT":
-        return WAITING_FOR_RECEIPT
-    else:
-        return WAITING_FOR_VFCASH_PHONE
 
-async def handle_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    lang = get_user_lang(user.id)
-    
-    file_id = update.message.photo[-1].file_id if update.message.photo else update.message.document.file_id
-    method = context.user_data.get('pay_method', 'Unknown')
-    funds = context.user_data.get('recharge_funds', 0)
-    username = f"@{user.username}" if user.username else "No Username"
-    msg_id = update.message.message_id
-    phone = context.user_data.get('vfcash_phone', '')
-    
-    extra = f"\n📱 {phone}" if phone else ""
-    caption = c(f"💰 طلب شحن محفظة\n👤 {user.first_name} ({username})\n🆔 <code>{user.id}</code>\n🏦 {method}\n💵 {funds} جنيه{extra}\n🧾 رقم: {msg_id}")
-    kb = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✅ موافقة", callback_data=f"adm_app_{user.id}_{funds}_{msg_id}", style="success"),
-        InlineKeyboardButton("❌ رفض", callback_data=f"adm_rej_{user.id}_{funds}_{msg_id}", style="danger", icon_custom_emoji_id="5859494848230334025")
-    ]])
-    
-    key = f"{user.id}_{funds}_{msg_id}"
-    payment_admin_messages[key] = {}
-    for adm in ADMINS:
-        try:
-            sent = await context.bot.send_photo(chat_id=adm, photo=file_id, caption=caption, reply_markup=kb, parse_mode="HTML")
-            payment_admin_messages[key][adm] = sent.message_id
-        except: pass
-    
-    msg = "✅ تم إرسال الوصل للإدارة." if lang == "ar" else "✅ Receipt has been sent to the admin."
-    await update.message.reply_text(msg)
-    return ConversationHandler.END
-
-async def admin_approval_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = query.from_user.id
-    settings = get_settings()
-    vip_perms = settings.get("vip_permissions", {})
-    if not is_admin(user_id) and not (is_vip(user_id) and vip_perms.get("pending_reqs", False)):
-        await query.answer("❌ هذا الإجراء للمسؤولين فقط.", show_alert=True)
-        return
-    data = query.data.split("_")
-    action, uid, funds_str = data[1], data[2], data[3]
-    msg_id = data[4] if len(data) > 4 else "0"
-    funds = float(funds_str)
-    key = f"{uid}_{funds_str}_{msg_id}"
-    if key in processed_payments:
-        await query.answer("تمت معالجة الطلب مسبقاً", show_alert=True)
-        return
-    processed_payments.add(key)
-    await query.answer()
-    
-    lang = get_user_lang(uid)
-    
-    if action == "app":
-        update_request_status(uid, "completed")
-        
-        # Generate redeem code for user based on funds approved
-        point_price = settings.get("point_price_egp", 50)
-        points = int(funds / point_price) if point_price > 0 else 1
-        if points < 1: points = 1
-        
-        new_codes = generate_codes(points, 1)
-        code = new_codes[0]
-
-        if lang == "ar":
-            msg = (
-                f"✅ <b>تم قبول طلب الشحن الخاص بك بنجاح!</b>\n\n"
-                f"💵 المبلغ: <b>{funds} جنيه</b>\n"
-                f"💎 النقاط المستحقة: <b>{points} نقطة</b>\n"
-                f"🎫 كود الاسترداد الخاص بك:\n<code>{code}</code>\n\n"
-                f"لإضافة النقاط لحسابك: افتح البوت واضغط على زر «🎫 استرداد كود» ثم أرسل الكود."
-            )
-        else:
-            msg = (
-                f"✅ <b>Your recharge request has been approved successfully!</b>\n\n"
-                f"💵 Amount: <b>EGP {funds}</b>\n"
-                f"💎 Points: <b>{points} Points</b>\n"
-                f"🎫 Your Redeem Code:\n<code>{code}</code>\n\n"
-                f"To add the points to your account: open the bot, tap «🎫 Redeem Code», then send the code."
-            )
-
-        await context.bot.send_message(chat_id=int(uid), text=msg, parse_mode="HTML")
-        status = "🟢 تمت الموافقة"
-    else:
-        update_request_status(uid, "rejected")
-        msg = c("❌ تم رفض طلب الشحن." if lang == "ar" else "❌ Recharge request rejected.")
-        await context.bot.send_message(chat_id=uid, text=msg)
-        status = "🔴 تم الرفض"
-    
-    for adm, mid in payment_admin_messages.get(key, {}).items():
-        try: await context.bot.edit_message_caption(chat_id=adm, message_id=mid, caption=query.message.caption + f"\n\n{status}", reply_markup=None)
-        except: pass
-    payment_admin_messages.pop(key, None)
-
-async def offer_buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    
-    user_id = update.effective_user.id
-    lang = get_user_lang(user_id)
-    username = update.effective_user.username or "NoUser"
-    
-    offer_idx = int(query.data.split("_")[2])
-    settings = get_settings()
-    if offer_idx >= len(settings["offers"]): 
-        try: await query.answer()
-        except: pass
-        return
-        
-    offer = settings["offers"][offer_idx]
-    
-    try: offer_price_egp = float(offer['price_egp'])
-    except: offer_price_egp = 0.0
-    
-    user_funds = get_user_funds(user_id)
-    
-    if user_funds < offer_price_egp:
-        msg = c(f"❌ رصيدك غير كافٍ. العرض يحتاج {offer_price_egp} جنيه ورصيدك {user_funds} جنيه. يرجى شحن محفظتك أولاً." if lang == "ar" else f"❌ Insufficient balance. Offer costs EGP {offer_price_egp} and your balance is EGP {user_funds}. Please recharge your wallet.")
-        await query.answer(msg, show_alert=True)
-        return
-    
-    # خصم تلقائي + إضافة النقاط مباشرة (لأن الرصيد كافٍ)
-    update_user_funds(user_id, -offer_price_egp)
-    new_pts = update_user_points(user_id, offer['points'])
-    new_funds = get_user_funds(user_id)
-    
-    msg_user = c(f"✅ تم شراء عرض {offer['name']} بنجاح!\n💵 الرصيد المتبقي: {new_funds} جنيه\n💎 إجمالي نقاطك: {new_pts}" if lang == "ar" else f"✅ Bought {offer['name']} successfully!\n💵 Remaining Balance: EGP {new_funds}\n💎 Total Points: {new_pts}")
-    await query.answer(msg_user, show_alert=True)
-    
-    # إشعار للمشرفين فقط (بدون أزرار موافقة/رفض)
-    caption = (
-        f"🛒 تم شراء عرض - تلقائي\n👤 {update.effective_user.first_name} (@{username})\n🆔 <code>{user_id}</code>\n📦 {offer['name']}\n💰 {offer_price_egp} جنيه\n💎 {offer['points']} نقطة\n💵 الرصيد المتبقي: {new_funds} جنيه"
-        if lang == "ar" else
-        f"🛒 Offer Auto-Purchased\n👤 {update.effective_user.first_name} (@{username})\n🆔 <code>{user_id}</code>\n📦 {offer['name']}\n💰 EGP {offer_price_egp}\n💎 {offer['points']} Points\n💵 Remaining Balance: EGP {new_funds}"
-    )
-    for adm in ADMINS:
-        try:
-            await context.bot.send_message(chat_id=adm, text=caption, parse_mode="HTML")
-        except: pass
-    
-    return ConversationHandler.END
-
-async def admin_offer_approval_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    parts = query.data.split("_")
-    raw_action = parts[0]
-    uid = int(parts[1])
-    offer_idx = int(parts[2])
-    ts = parts[3]
-    
-    action = "app" if raw_action == "offerapp" else "rej"
-    key = f"{uid}_{offer_idx}_{ts}"
-    
-    if key in processed_offer_purchases:
-        await query.answer("تمت معالجة الطلب مسبقاً", show_alert=True)
-        return
-    processed_offer_purchases.add(key)
-    await query.answer()
-    
-    lang = get_user_lang(uid)
-    settings = get_settings()
-    
-    if action == "app":
-        if offer_idx >= len(settings["offers"]):
-            await query.answer("⚠️ العرض غير موجود", show_alert=True)
-            return
-        
-        offer = settings["offers"][offer_idx]
-        try: offer_price_egp = float(offer['price_egp'])
-        except: offer_price_egp = 0.0
-        
-        user_funds = get_user_funds(uid)
-        if user_funds < offer_price_egp:
-            msg = "❌ رصيد المستخدم غير كافٍ." if lang == "ar" else "❌ User has insufficient balance."
-            await context.bot.send_message(chat_id=uid, text=msg)
-            status = "🔴 رفض (رصيد غير كافٍ)"
-        else:
-            update_user_funds(uid, -offer_price_egp)
-            new_pts = update_user_points(uid, int(offer['points']))
-            new_funds = get_user_funds(uid)
-            msg = c(f"✅ تم شراء عرض {offer['name']} بنجاح!\n💵 الرصيد المتبقي: {new_funds} جنيه\n💎 إجمالي نقاطك: {new_pts}" if lang == "ar" else f"✅ Bought {offer['name']} successfully!\n💵 Remaining Balance: EGP {new_funds}\n💎 Total Points: {new_pts}")
-            await context.bot.send_message(chat_id=uid, text=msg, parse_mode="HTML")
-            status = "🟢 تمت الموافقة"
-    else:
-        msg = c("❌ تم رفض طلب شراء العرض." if lang == "ar" else "❌ Offer purchase request rejected.")
-        await context.bot.send_message(chat_id=uid, text=msg)
-        status = "🔴 تم الرفض"
-    
-    for adm, mid in offer_purchase_messages.get(key, {}).items():
-        try: await context.bot.edit_message_text(chat_id=adm, message_id=mid, text=query.message.text + f"\n\n{status}", reply_markup=None, parse_mode="HTML")
-        except: pass
-    offer_purchase_messages.pop(key, None)
-
-async def admin_offers_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-    settings = get_settings()
-
-    if data == "admin_add_offer":
-        await query.message.reply_text("أرسل تفاصيل العرض: الاسم | السعر جنيه | سعر USDT | النقاط")
-        return WAITING_FOR_OFFER_DETAILS
-    elif data == "admin_edit_offer_title":
-        await query.message.reply_text("أرسل عنوان العروض الجديد:")
-        return WAITING_FOR_OFFER_TITLE
-    elif data.startswith("del_off_"):
-        idx = int(data.split("_")[2])
-        if idx < len(settings["offers"]):
-            del settings["offers"][idx]
-            save_settings(settings)
-            await query.message.reply_text("✅ تم الحذف.")
-            await query.edit_message_reply_markup(reply_markup=get_admin_offers_keyboard())
-    elif data.startswith("edit_off_"):
-        idx = int(data.split("_")[2])
-        if idx < len(settings["offers"]):
-            offer = settings["offers"][idx]
-            context.user_data['edit_offer_idx'] = idx
-            await query.message.reply_text(
-                f"📝 <b>تعديل العرض:</b> {offer['name']}\n\n"
-                f"أرسل التفاصيل الجديدة بنفس التنسيق:\n"
-                f"<code>الاسم | السعر جنيه | سعر USDT | النقاط</code>",
-                parse_mode="HTML"
-            )
-            return WAITING_FOR_EDIT_OFFER_DETAILS
-    return ConversationHandler.END
 
 async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2451,61 +1900,8 @@ async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TY
     
     return await start(update, context)
 
-async def handle_edit_offer_details_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if any(text.startswith(w) for w in ("ارسال", "حسابي", "شحن", "العروض", "تواصل", "اللغة", "لوحة", "Send", "My", "Recharge", "Offers", "Contact", "Language", "Admin")) or text.startswith("🔙") or text == "إلغاء": 
-        await update.message.reply_text(c("❌ تم إلغاء التعديل."), parse_mode="HTML")
-        return await main_menu_handler(update, context)
-        
-    idx = context.user_data.get('edit_offer_idx')
-    if idx is not None and "|" in text:
-        parts = [i.strip() for i in text.split("|")]
-        if len(parts) == 4:
-            try:
-                name, p_egp, p_usdt, pts = parts
-                int(pts)
-                settings = get_settings()
-                if idx < len(settings["offers"]):
-                    settings["offers"][idx] = {"name": name, "price_egp": p_egp, "price_usdt": p_usdt, "points": pts}
-                    save_settings(settings)
-                    await update.message.reply_text(f"✅ <b>تم تحديث العرض بنجاح:</b>\n📦 {name}", parse_mode="HTML")
-                    return ConversationHandler.END
-            except: pass
-    
-    await update.message.reply_text("⚠️ <b>تنسيق غير صحيح!</b>\nيرجى الإرسال كالتالي:\nالاسم | السعر جنيه | سعر USDT | النقاط", parse_mode="HTML")
-    return WAITING_FOR_EDIT_OFFER_DETAILS
 
-async def handle_price_config_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    if any(text.startswith(w) for w in ("ارسال", "حسابي", "شحن", "العروض", "تواصل", "اللغة", "لوحة", "Send", "My", "Recharge", "Offers", "Contact", "Language", "Admin")) or text.startswith("🔙") or text == "إلغاء": 
-        return await main_menu_handler(update, context)
-    
-    try:
-        p_egp = float(text.strip())
-        settings = get_settings()
-        settings["point_price_egp"] = p_egp
-        save_settings(settings)
-        await update.message.reply_text(f"✅ <b>تم تحديث سعر النقطة:</b>\n1 نقطة = {p_egp} جنيه", parse_mode="HTML")
-        return ConversationHandler.END
-    except:
-        await update.message.reply_text("⚠️ <b>تنسيق غير صحيح!</b>\nأرسل السعر الجديد للنقطة (بالجنيه) كرقم فقط (مثال: 50)", parse_mode="HTML")
-        return WAITING_FOR_PRICE_CONFIG
 
-async def handle_price_usd_config_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.strip()
-    if any(text.startswith(w) for w in ("ارسال", "حسابي", "شحن", "العروض", "تواصل", "اللغة", "لوحة", "Send", "My", "Recharge", "Offers", "Contact", "Language", "Admin")) or text.startswith("🔙") or text == "إلغاء": 
-        return await main_menu_handler(update, context)
-    
-    try:
-        p_usd = float(text.strip())
-        settings = get_settings()
-        settings["point_price_usd"] = p_usd
-        save_settings(settings)
-        await update.message.reply_text(f"✅ <b>تم تحديث سعر النقطة:</b>\n1 نقطة = {p_usd} دولار", parse_mode="HTML")
-        return ConversationHandler.END
-    except:
-        await update.message.reply_text("⚠️ <b>تنسيق غير صحيح!</b>\nأرسل السعر الجديد للنقطة (بالدولار) كرقم فقط (مثال: 1.5)", parse_mode="HTML")
-        return WAITING_FOR_PRICE_USD_CONFIG
 
 async def automation_settings_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -2850,38 +2246,7 @@ async def handle_set_account_interval(update: Update, context: ContextTypes.DEFA
         return ConversationHandler.END
     except: await update.message.reply_text("⚠️ أدخل رقم صحيح (0-10):"); return WAITING_FOR_ACCOUNT_INTERVAL
 
-async def handle_offer_details_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if any(text.startswith(w) for w in ("ارسال", "حسابي", "شحن", "العروض", "تواصل", "اللغة", "لوحة", "Send", "My", "Recharge", "Offers", "Contact", "Language", "Admin")) or text.startswith("🔙") or text == "إلغاء": 
-        await update.message.reply_text(c("❌ تم إلغاء إضافة العرض."), parse_mode="HTML")
-        return await main_menu_handler(update, context)
-        
-    if "|" in text:
-        parts = [i.strip() for i in text.split("|")]
-        if len(parts) == 4:
-            try:
-                name, p_egp, p_usdt, pts = parts
-                int(pts) # Check if numeric
-                settings = get_settings()
-                settings["offers"].append({"name": name, "price_egp": p_egp, "price_usdt": p_usdt, "points": pts})
-                save_settings(settings)
-                await update.message.reply_text(c(f"✅ <b>تم إضافة العرض بنجاح:</b>\n📦 {name}\n💎 النقاط: {pts}"), parse_mode="HTML")
-                return ConversationHandler.END
-            except: pass
-    
-    await update.message.reply_text("⚠️ <b>تنسيق غير صحيح!</b>\nيرجى الإرسال كالتالي:\nالاسم | السعر جنيه | سعر USDT | النقاط", parse_mode="HTML")
-    return WAITING_FOR_OFFER_DETAILS
 
-async def handle_offer_title_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    new_title = update.message.text # Use raw text to allow multiline and special chars
-    settings = get_settings()
-    settings["offers_title"] = new_title
-    save_settings(settings)
-    try:
-        await update.message.reply_text(f"✅ تم تحديث عنوان العروض بنجاح!\n\n📌 العنوان الجديد:\n{new_title}", parse_mode="HTML")
-    except:
-        await update.message.reply_text(f"✅ تم تحديث عنوان العروض بنجاح!\n\n📌 العنوان الجديد:\n{new_title}")
-    return ConversationHandler.END
 
 async def handle_welcome_text_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     new_text = update.message.text.strip()
@@ -2931,11 +2296,6 @@ async def handle_zero_target(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(f"✅ تم تصفير نقاط المستخدم {target_id}")
     return ConversationHandler.END
 
-async def handle_zero_funds_target(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target_id = update.message.text.strip()
-    update_user_funds(target_id, 0.0, relative=False)
-    await update.message.reply_text(f"✅ تم تصفير رصيد المستخدم {target_id}")
-    return ConversationHandler.END
 
 async def handle_support_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     sup = update.message.text.strip()
@@ -3024,20 +2384,6 @@ async def vip_perms_callback_handler(update: Update, context: ContextTypes.DEFAU
         msg = "⚙️ <b>تعديل صلاحيات VIP:</b>" if lang == "ar" else "⚙️ <b>Edit VIP permissions:</b>"
         await query.edit_message_text(msg, reply_markup=get_vip_perms_keyboard(lang, page), parse_mode="HTML")
 
-async def handle_wallets_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    settings = get_settings()
-    if "|" in text:
-        parts = [i.strip() for i in text.split("|")]
-        if len(parts) >= 2:
-            vfcash, usdt = parts[0], parts[1]
-            settings['vfcash'] = vfcash
-            settings['usdt'] = usdt
-            save_settings(settings)
-            await update.message.reply_text(f"✅ تم التحديث.")
-        else:
-            await update.message.reply_text(c("❌ تنسيق خاطئ. استخدم: فودافون كاش | USDT"), parse_mode="HTML")
-    return ConversationHandler.END
 
 async def handle_users_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.effective_message
@@ -3050,8 +2396,7 @@ async def handle_users_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current = "👥 <b>قائمة المستخدمين:</b>\n\n"
         for uid, info in users.items():
             username = f"@{info['username']}" if info.get('username') else "بدون يوزر"
-            funds = info.get('funds', 0.0)
-            line = c(f"🔹 <code>{uid}</code> | {username} | 💎 {info['points']} | 💵 {funds} جنيه\n")
+            line = c(f"🔹 <code>{uid}</code> | {username} | 💎 {info['points']}\n")
             if len(current) + len(line) > 3800:
                 parts.append(current)
                 current = line
@@ -3078,9 +2423,7 @@ async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except: pass
     
     admins_count = len(ADMINS)
-    settings = get_settings()
-    offers_count = len(settings.get("offers", []))
-    
+
     combo_emails = [_account_key(a) for a in load_api_accounts()]
     combo_count = len(combo_emails)
     available_accounts = 0
@@ -3113,7 +2456,6 @@ async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👥 عدد المستخدمين الكلي: <b>{users_count}</b>\n"
         f"💎 إجمالي النقاط الموزعة: <b>{total_points}</b>\n"
         f"👮 عدد المسؤولين: <b>{admins_count}</b>\n"
-        f"🎁 عدد العروض النشطة: <b>{offers_count}</b>\n"
         f"📂 إجمالي حسابات API: <b>{combo_count}</b>\n"
         f"✅ حسابات لم تستهلك حدها: <b>{available_accounts}</b>\n"
         f"🎯 إجمالي المساعدات المتبقية اليوم: <b>{remaining_helps}</b>\n"
@@ -3121,43 +2463,6 @@ async def handle_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await msg.reply_text(text, parse_mode="HTML")
     return ConversationHandler.END
 
-async def handle_users_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = update.effective_message
-    if not msg: return ConversationHandler.END
-    
-    users_data = {}
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            try: users_data = json.load(f)
-            except: pass
-    
-    if not users_data:
-        await msg.reply_text("❌ لا يوجد مستخدمين.")
-        return ConversationHandler.END
-    
-    parts = []
-    current = "💰 <b>المستخدمين مع رصيد:</b>\n\n"
-    for uid, info in users_data.items():
-        funds = info.get('funds', 0.0)
-        points = info.get('points', 0)
-        if funds > 0 or points > 0:
-            username = f"@{info['username']}" if info.get('username') else "بدون يوزر"
-            line = c(f"🔹 <code>{uid}</code> | {username}\n💵 {funds} جنيه | 💎 {points} نقطة\n\n")
-            if len(current) + len(line) > 3800:
-                parts.append(current)
-                current = line
-            else:
-                current += line
-    
-    if not current.strip("💰 <b>المستخدمين مع رصيد:</b>\n\n"):
-        await msg.reply_text("✅ لا يوجد مستخدمين لديهم رصيد حالياً.")
-        return ConversationHandler.END
-    
-    if current:
-        parts.append(current)
-    for part in parts:
-        await msg.reply_text(part, parse_mode="HTML")
-    return ConversationHandler.END
 
 async def handle_codes_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.effective_message
@@ -3252,7 +2557,6 @@ DATA_FILES = {
     "codes": ("codes.json", "🎫 الأكواد", "🎫 Codes"),
     "admins": ("admins.json", "👮 الآدمن", "👮 Admins"),
     "vips": ("vips.json", "🎖️ الـ VIP", "🎖️ VIPs"),
-    "pending": ("pending_requests.json", "📋 طلبات الشحن", "📋 Recharge Reqs"),
     "api_accounts": ("api_accounts.json", "🔑 حسابات API", "🔑 API Accounts"),
     "broken": ("broken_accounts.txt", "🚫 الحسابات المعطلة", "🚫 Broken Accounts"),
 }
@@ -3338,8 +2642,6 @@ async def handle_free_mode_time(update: Update, context: ContextTypes.DEFAULT_TY
 MM_MAP = {
     "mm_send_link": ("ارسال الرابط", "Send Link"),
     "mm_account": ("حسابي", "My Account"),
-    "mm_recharge": ("شحن رصيد", "Recharge"),
-    "mm_offers": ("العروض", "Offers"),
     "mm_contact": ("تواصل معنا", "Contact Us"),
     "mm_lang": ("اللغة / Language", "اللغة / Language"),
     "mm_admin": ("لوحة الإدارة", "Admin Panel"),
@@ -3347,13 +2649,11 @@ MM_MAP = {
     "mm_broadcast": ("📢 إذاعة", "📢 Broadcast"),
     "mm_transfer": ("تحويل نقاط", "Transfer Points"),
     "mm_reset": ("🧹 تصفير النقاط", "🧹 Reset Points"),
-    "mm_reset_funds": ("🧹 تصفير الرصيد", "🧹 Reset Funds"),
     "mm_users": ("👥 قائمة المستخدمين", "👥 Users List"),
     "mm_block_user": ("🚫 حظر مستخدم", "🚫 Block User"),
     "mm_unblock_user": ("✅ الغاء حظر مستخدم", "✅ Unblock User"),
     "mm_stats": ("📊 الإحصائيات", "📊 Statistics"),
     "mm_links_log": ("🔗 سجل الروابط", "🔗 Links Log"),
-    "mm_manage_offers": ("🎁 إدارة العروض", "🎁 Manage Offers"),
     "mm_toggle_lock": ("", ""),
     "mm_set_support": ("☎️ تحديد الدعم", "☎️ Set Support"),
     "mm_edit_welcome": ("📝 تعديل الترحيب", "📝 Edit Welcome"),
@@ -3364,19 +2664,14 @@ MM_MAP = {
     "mm_vip_perms": ("⚙️ صلاحيات VIP", "⚙️ VIP Permissions"),
     "mm_vip_panel": ("لوحة الـ VIP", "VIP Panel"),
     "mm_remaining": ("📋 الباقي", "📋 Remaining"),
-    "mm_set_wallets": ("💳 تحديد المحافظ", "💳 Set Wallets"),
-    "mm_edit_price": ("💰 تعديل سعر الجنيه", "💰 Edit EGP Price"),
-    "mm_edit_price_usd": ("💵 تعديل سعر الدولار", "💵 Edit USD Price"),
     "mm_auto_settings": ("⚙️ إعدادات الأتمتة", "⚙️ Automation Settings"),
     "mm_redeem": ("🎫 استرداد كود", "🎫 Redeem Code"),
     "mm_gen_codes": ("🎫 إنشاء أكواد", "🎫 Generate Codes"),
-    "mm_users_balance": ("👥 الرصيد المتبقي", "👥 Remaining Balance"),
     "mm_codes_list": ("🎫 إدارة الأكواد", "🎫 Manage Codes"),
     "mm_toggle_free_mode": ("", ""),
     "mm_tutorial": ("🎥 فيديو شرح", "🎥 Tutorial"),
     "mm_set_tutorial": ("🎥 تعيين فيديو الشرح", "🎥 Set Tutorial Video"),
     "mm_data_files": ("📁 ملفات البيانات", "📁 Data Files"),
-    "mm_pending_reqs": ("📋 طلبات الشحن", "📋 Recharge Reqs"),
     "mm_force_cookies_refresh": ("🔄 تحديث الكوكيز إجباري", "🔄 Force Refresh Cookies"),
 }
 
@@ -3489,35 +2784,11 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return WAITING_FOR_LINK
     elif text in ["حسابي", "My Account"]:
         p = check_user(uid)
-        f = get_user_funds(uid)
         if lang == "ar":
-            msg = c(f"👤 <b>معلومات حسابك:</b>\n\n🆔 الأيدي: <code>{uid}</code>\n💵 رصيد المحفظة: <b>{f} جنيه</b>\n💎 نقاط الروابط: <b>{p}</b>")
+            msg = c(f"👤 <b>معلومات حسابك:</b>\n\n🆔 الأيدي: <code>{uid}</code>\n💎 نقاط الروابط: <b>{p}</b>")
         else:
-            msg = c(f"👤 <b>Your Account Info:</b>\n\n🆔 ID: <code>{uid}</code>\n💵 Wallet Balance: <b>EGP {f}</b>\n💎 Link Points: <b>{p}</b>")
+            msg = c(f"👤 <b>Your Account Info:</b>\n\n🆔 ID: <code>{uid}</code>\n💎 Link Points: <b>{p}</b>")
         await msg_obj.reply_text(msg, parse_mode="HTML")
-    elif text in ["شحن رصيد", "Recharge"]:
-        point_price = settings.get("point_price_egp", 50)
-        if lang == "ar":
-            msg = (
-                f"💵 <b>أدخل عدد النقاط التي ترغب في شحنها:</b>\n"
-                f"💡 سعر النقطة الحالية: <b>{point_price} جنيه</b>"
-            )
-        else:
-            msg = (
-                f"💵 <b>Enter the number of points you want to recharge:</b>\n"
-                f"💡 Current point price: <b>EGP {point_price}</b>"
-            )
-        await msg_obj.reply_text(msg, parse_mode="HTML")
-        return WAITING_FOR_RECHARGE_AMOUNT
-    elif text in ["العروض", "Offers"]:
-        kb = get_offers_keyboard()
-        title = settings.get("offers_title", "🎁 اختر العرض المناسب لك:")
-        if not kb: 
-            msg = c("❌ لا توجد عروض متاحة حالياً." if lang == "ar" else "❌ No offers available currently.")
-            await msg_obj.reply_text(msg)
-        else:
-            try: await msg_obj.reply_text(title, reply_markup=kb, parse_mode="HTML")
-            except: await msg_obj.reply_text(title, reply_markup=kb)
     elif text in ["تواصل معنا", "Contact Us"]:
         sup = settings.get("support", "@SALAH104").replace("@", "")
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("الدعم الفني 💬" if lang == "ar" else "Technical Support 💬", url=f"https://t.me/{sup}", style="primary")]])
@@ -3600,21 +2871,10 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = "⚠️ <b>أرسل أيدي المستخدم لتصفير نقاطه:</b>" if lang == "ar" else "⚠️ <b>Send the user ID to reset their points:</b>"
             await msg_obj.reply_text(msg, parse_mode="HTML")
             return WAITING_FOR_ZERO_TARGET
-        elif text in ["🧹 تصفير الرصيد", "🧹 Reset Funds"]:
-            if not (is_adm or vip_perms.get("reset_points", False)):
-                return ConversationHandler.END
-            msg = "⚠️ <b>أرسل أيدي المستخدم لتصفير رصيده:</b>" if lang == "ar" else "⚠️ <b>Send the user ID to reset their funds:</b>"
-            await msg_obj.reply_text(msg, parse_mode="HTML")
-            return WAITING_FOR_ZERO_FUNDS_TARGET
         elif text in ["👥 قائمة المستخدمين", "👥 Users List"]:
             if not (is_adm or vip_perms.get("users_list", False)):
                 return ConversationHandler.END
             return await handle_users_list(update, context)
-        elif text in ["🎁 إدارة العروض", "🎁 Manage Offers"]:
-            if not (is_adm or vip_perms.get("manage_offers", False)):
-                return ConversationHandler.END
-            msg = "⚙️ <b>إدارة قائمة العروض الحالية:</b>" if lang == "ar" else "⚙️ <b>Manage current offers list:</b>"
-            await msg_obj.reply_text(msg, reply_markup=get_admin_offers_keyboard(), parse_mode="HTML")
         elif text in ["☎️ تحديد الدعم", "☎️ Set Support"]:
             if not (is_adm or vip_perms.get("set_support", False)):
                 return ConversationHandler.END
@@ -3691,46 +2951,6 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return ConversationHandler.END
             msg = "⚙️ <b>تعديل صلاحيات VIP:</b>" if lang == "ar" else "⚙️ <b>Edit VIP permissions:</b>"
             await msg_obj.reply_text(msg, reply_markup=get_vip_perms_keyboard(lang), parse_mode="HTML")
-        elif text in ["💳 تحديد المحافظ", "💳 Set Wallets"]:
-            if not (is_adm or vip_perms.get("set_wallets", False)):
-                return ConversationHandler.END
-            msg = "💰 <b>أرسل بيانات المحافظ بالتنسيق التالي:</b>\nفودافون كاش | USDT" if lang == "ar" else "💰 <b>Send wallet data in the following format:</b>\nVF-Cash | USDT"
-            await msg_obj.reply_text(msg, parse_mode="HTML")
-            return WAITING_FOR_WALLETS
-        elif text in ["💰 تعديل سعر الجنيه", "💰 Edit EGP Price"]:
-            if not (is_adm or vip_perms.get("edit_price", False)):
-                return ConversationHandler.END
-            p_egp = settings.get("point_price_egp", 50)
-            msg = (
-                f"💰 <b>إعدادات سعر النقطة الحالية:</b>\n"
-                f"سعر النقطة (بالجنيه): <b>{p_egp}</b>\n\n"
-                f"أرسل السعر الجديد للنقطة (بالجنيه):\n"
-                f"<code>مثال: 50</code>"
-            ) if lang == "ar" else (
-                f"💰 <b>Current Point Price Settings:</b>\n"
-                f"Point Price (EGP): <b>{p_egp}</b>\n\n"
-                f"Send new price in the following format:\n"
-                f"<code>e.g. 50</code>"
-            )
-            await msg_obj.reply_text(msg, parse_mode="HTML")
-            return WAITING_FOR_PRICE_CONFIG
-        elif text in ["💵 تعديل سعر الدولار", "💵 Edit USD Price"]:
-            if not (is_adm or vip_perms.get("edit_price", False)):
-                return ConversationHandler.END
-            p_usd = settings.get("point_price_usd", 1.0)
-            msg = (
-                f"💵 <b>إعدادات سعر النقطة الحالية:</b>\n"
-                f"سعر النقطة (بالدولار): <b>{p_usd}</b>\n\n"
-                f"أرسل السعر الجديد للنقطة (بالدولار):\n"
-                f"<code>مثال: 1.5</code>"
-            ) if lang == "ar" else (
-                f"💵 <b>Current Point Price Settings:</b>\n"
-                f"Point Price (USD): <b>{p_usd}</b>\n\n"
-                f"Send new price in the following format:\n"
-                f"<code>e.g. 1.5</code>"
-            )
-            await msg_obj.reply_text(msg, parse_mode="HTML")
-            return WAITING_FOR_PRICE_USD_CONFIG
         elif text in ["🎫 إنشاء أكواد", "🎫 Generate Codes"]:
             if not (is_adm or vip_perms.get("gen_codes", False)):
                 return ConversationHandler.END
@@ -3742,10 +2962,6 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return ConversationHandler.END
             msg = "⚙️ <b>إعدادات نظام الأتمتة:</b>" if lang == "ar" else "⚙️ <b>Automation System Settings:</b>"
             await msg_obj.reply_text(msg, reply_markup=get_automation_settings_keyboard(), parse_mode="HTML")
-        elif text in ["👥 الرصيد المتبقي", "👥 Remaining Balance"]:
-            if not (is_adm or vip_perms.get("users_balance", False)):
-                return ConversationHandler.END
-            return await handle_users_balance(update, context)
         elif text in ["🎫 إدارة الأكواد", "🎫 Manage Codes"]:
             if not (is_adm or vip_perms.get("codes_list", False)):
                 return ConversationHandler.END
@@ -3762,163 +2978,13 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = "🔑 <b>أرسل كلمة سر الملفات:</b>" if lang == "ar" else "🔑 <b>Enter the data files password:</b>"
             await msg_obj.reply_text(msg, parse_mode="HTML")
             return WAITING_FOR_DATA_PASSWORD
-        elif text in ["📋 طلبات الشحن", "📋 Recharge Reqs"]:
-            if not (is_adm or vip_perms.get("pending_reqs", False)):
-                return ConversationHandler.END
-            return await handle_pending_requests(update, context)
         return ConversationHandler.END
     
     return ConversationHandler.END
 
-async def handle_pending_requests(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    lang = get_user_lang(user.id)
-    is_callback = update.callback_query is not None
-    if is_callback:
-        await update.callback_query.answer()
-        msg_obj = update.callback_query.message
-    else:
-        msg_obj = update.message
 
-    reqs = get_pending_requests()
-    pending = {u: r for u, r in reqs.items() if r["status"] == "pending"}
-    completed = {u: r for u, r in reqs.items() if r["status"] == "completed"}
-    
-    if not pending and not completed:
-        msg = c("📋 <b>لا توجد طلبات شحن.</b>" if lang == "ar" else "📋 <b>No recharge requests.</b>")
-        await msg_obj.reply_text(msg, parse_mode="HTML")
-        return ConversationHandler.END
 
-    lines = []
-    if pending:
-        lines.append("⏳ <b>قيد الانتظار:</b>" if lang == "ar" else "⏳ <b>Pending:</b>")
-        for uid, r in pending.items():
-            lines.append(f"🆔 <code>{uid}</code> | {r.get('username','?')} | 💵 {r['amount']} ج | 📱 {r['phone']}")
-            if lang == "ar":
-                lines.append(f"⏰ {r['timestamp']}")
-            else:
-                lines.append(f"⏰ {r['timestamp']}")
-        lines.append("")
-    if completed:
-        lines.append("✅ <b>مؤكدة:</b>" if lang == "ar" else "✅ <b>Completed:</b>")
-        for uid, r in completed.items():
-            lines.append(f"🆔 <code>{uid}</code> | {r.get('username','?')} | 💵 {r['amount']} ج | 📱 {r['phone']}")
 
-    text = "\n".join(lines)
-    
-    # أزرار للطلبات المعلقة
-    btns = []
-    for uid, r in pending.items():
-        btns.append([
-            InlineKeyboardButton(f"✅ {uid[:4]}..." if len(uid) > 8 else f"✅ {uid}", callback_data=f"confirm_req_{uid}"),
-            InlineKeyboardButton(f"❌ {uid[:4]}..." if len(uid) > 8 else f"❌ {uid}", callback_data=f"reject_req_{uid}")
-        ])
-    btns.append([InlineKeyboardButton("🔍 إعادة فحص" if lang == "ar" else "🔍 Re-check", callback_data="mm_pending_reqs")])
-    await msg_obj.reply_text(text, reply_markup=InlineKeyboardMarkup(btns), parse_mode="HTML")
-    return ConversationHandler.END
-
-async def confirm_pending_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = update.effective_user.id
-    settings = get_settings()
-    vip_perms = settings.get("vip_permissions", {})
-    if not is_admin(user_id) and not (is_vip(user_id) and vip_perms.get("pending_reqs", False)):
-        await query.answer("❌ هذا الإجراء للمسؤولين فقط.", show_alert=True)
-        return
-    await query.answer()
-    uid = query.data.replace("confirm_req_", "")
-    lang = get_user_lang(update.effective_user.id)
-    reqs = load_pending_requests()
-    if uid not in reqs or reqs[uid]["status"] != "pending":
-        msg = c("❌ الطلب غير موجود أو تمت معالجته مسبقاً." if lang == "ar" else "❌ Request not found or already processed.")
-        await query.edit_message_text(msg)
-        return
-    r = reqs[uid]
-    r["status"] = "completed"
-    save_pending_requests(reqs)
-    
-    # Generate redeem code for user based on funds approved
-    point_price = settings.get("point_price_egp", 50)
-    points = int(r["amount"] / point_price) if point_price > 0 else 1
-    if points < 1: points = 1
-    
-    new_codes = generate_codes(points, 1)
-    code = new_codes[0]
-
-    lang_u = get_user_lang(uid)
-    try:
-        if lang_u == "ar":
-            msg = (
-                f"✅ <b>تم قبول طلب الشحن الخاص بك بنجاح!</b>\n\n"
-                f"💵 المبلغ: <b>{r['amount']} جنيه</b>\n"
-                f"💎 النقاط المستحقة: <b>{points} نقطة</b>\n"
-                f"🎫 كود الاسترداد الخاص بك:\n<code>{code}</code>\n\n"
-                f"لإضافة النقاط لحسابك: افتح البوت واضغط على زر «🎫 استرداد كود» ثم أرسل الكود."
-            )
-        else:
-            msg = (
-                f"✅ <b>Your recharge request has been approved successfully!</b>\n\n"
-                f"💵 Amount: <b>EGP {r['amount']}</b>\n"
-                f"💎 Points: <b>{points} Points</b>\n"
-                f"🎫 Your Redeem Code:\n<code>{code}</code>\n\n"
-                f"To add the points to your account: open the bot, tap «🎫 Redeem Code», then send the code."
-            )
-        await context.bot.send_message(chat_id=int(uid), text=msg, parse_mode="HTML")
-    except: pass
-    msg = c(f"✅ تم تأكيد طلب <code>{uid}</code> — {r['amount']} جنيه." if lang == "ar" else f"✅ Confirmed request <code>{uid}</code> — EGP {r['amount']}.")
-    await query.edit_message_text(msg, parse_mode="HTML")
-
-async def reject_pending_request(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user_id = update.effective_user.id
-    settings = get_settings()
-    vip_perms = settings.get("vip_permissions", {})
-    if not is_admin(user_id) and not (is_vip(user_id) and vip_perms.get("pending_reqs", False)):
-        await query.answer("❌ هذا الإجراء للمسؤولين فقط.", show_alert=True)
-        return
-    await query.answer()
-    uid = query.data.replace("reject_req_", "")
-    lang = get_user_lang(update.effective_user.id)
-    reqs = load_pending_requests()
-    if uid not in reqs or reqs[uid]["status"] != "pending":
-        msg = c("❌ الطلب غير موجود أو تمت معالجته مسبقاً." if lang == "ar" else "❌ Request not found or already processed.")
-        await query.edit_message_text(msg)
-        return
-    r = reqs[uid]
-    r["status"] = "rejected"
-    save_pending_requests(reqs)
-    lang_u = get_user_lang(uid)
-    try:
-        await context.bot.send_message(chat_id=int(uid), text=c(
-            f"❌ تم رفض طلب الشحن الخاص بك (💵 {r['amount']} جنيه). تواصل مع الدعم للمساعدة." if lang_u == "ar"
-            else f"❌ Your recharge request has been rejected (EGP {r['amount']}). Contact support for help."
-        ), parse_mode="HTML")
-    except: pass
-    msg = c(f"❌ تم رفض طلب <code>{uid}</code> — {r['amount']} جنيه." if lang == "ar" else f"❌ Rejected request <code>{uid}</code> — EGP {r['amount']}.")
-    await query.edit_message_text(msg, parse_mode="HTML")
-
-async def handle_vfcash_phone(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    lang = get_user_lang(user.id)
-    phone = update.message.text.strip()
-    context.user_data['vfcash_phone'] = phone
-    funds = context.user_data.get('recharge_funds', 0)
-
-    username = f"@{user.username}" if user.username else "NoUser"
-    add_pending_request(user.id, username, funds, phone)
-    msg = c(
-        "✅ تم تسجيل طلبك.\n📸 أرسل صورة التحويل (مع ظهور الرقم المرسل إليه):"
-        if lang == "ar" else
-        "✅ Request saved.\n📸 Send a screenshot of the transfer (showing the recipient number):"
-    )
-    await update.message.reply_text(msg, parse_mode="HTML")
-    for adm in ADMINS:
-        try:
-            await context.bot.send_message(chat_id=adm, text=c(
-                f"📋 طلب شحن جديد\n👤 {user.first_name} ({username})\n🆔 <code>{user.id}</code>\n💵 {funds} جنيه\n📱 {phone}\n⏳ ينتظر صورة الوصل"
-            ), parse_mode="HTML")
-        except: pass
-    return WAITING_FOR_RECEIPT
 
 
 async def handle_block_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -3968,12 +3034,10 @@ async def handle_private_direct_message(update: Update, context: ContextTypes.DE
 
     if text == "رصيدي":
         user_id = update.effective_user.id
-        funds = get_user_funds(user_id)
         points = get_user_points(user_id)
         msg_text = (
             "👤 <b>معلومات حسابك:</b>\n\n"
             f"🆔 <b>الأيدي:</b> <code>{user_id}</code>\n"
-            f"💵 <b>رصيد المحفظة:</b> <code>{funds}</code> جنيه\n"
             f"💎 <b>نقاط الروابط:</b> <code>{points}</code>"
         )
         await update.message.reply_text(msg_text, parse_mode="HTML")
@@ -4008,34 +3072,22 @@ def main():
     conv = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"^(ارسال الرابط|Send Link|حسابي|My Account|شحن رصيد|Recharge|العروض|Offers|تواصل معنا|Contact Us|اللغة / Language|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|🎁 إدارة العروض|🎁 Manage Offers|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|💳 تحديد المحافظ|💳 Set Wallets|💰 تعديل سعر الجنيه|💰 Edit EGP Price|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|🎫 إنشاء أكواد|🎫 Generate Codes|👥 الرصيد المتبقي|👥 Remaining Balance|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 فيديو شرح|🎥 Tutorial|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|📋 طلبات الشحن|📋 Recharge Reqs|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
+            MessageHandler(filters.Regex(r"^(ارسال الرابط|Send Link|حسابي|My Account|تواصل معنا|Contact Us|اللغة / Language|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|🎫 إنشاء أكواد|🎫 Generate Codes|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 فيديو شرح|🎥 Tutorial|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
             CallbackQueryHandler(main_menu_handler, pattern="^mm_"),
-            CallbackQueryHandler(offer_buy_handler, pattern="^buy_offer_"),
-            CallbackQueryHandler(admin_offers_callback_handler, pattern="^(admin_|del_off_|edit_off_)"),
             CallbackQueryHandler(automation_settings_callback_handler, pattern="^set_(tabs|target|login|search|post|account|comp|batch|close|draw|claim)_")
         ],
         states={
             WAITING_FOR_LINK: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link_input)],
-            WAITING_FOR_RECHARGE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_recharge_amount)],
-            WAITING_FOR_PAYMENT_METHOD: [CallbackQueryHandler(payment_callback, pattern="^pay_")],
-            WAITING_FOR_RECEIPT: [MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_receipt)],
             WAITING_FOR_BROADCAST: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_broadcast)],
             WAITING_FOR_TRANSFER_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_transfer_target)],
             WAITING_FOR_TRANSFER_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_transfer_amount)],
             WAITING_FOR_ZERO_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_zero_target)],
-            WAITING_FOR_ZERO_FUNDS_TARGET: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_zero_funds_target)],
             WAITING_FOR_SUPPORT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_support_input)],
             WAITING_FOR_ADMIN_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_id_input)],
             WAITING_FOR_REMOVE_ADMIN: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_remove_admin_input)],
             WAITING_FOR_VIP_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vip_id_input)],
             WAITING_FOR_REMOVE_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_remove_vip_input)],
-            WAITING_FOR_WALLETS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_wallets_input)],
-            WAITING_FOR_OFFER_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_offer_details_input)],
-            WAITING_FOR_OFFER_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_offer_title_input)],
             WAITING_FOR_WELCOME_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_welcome_text_input)],
-            WAITING_FOR_EDIT_OFFER_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_offer_details_input)],
-            WAITING_FOR_PRICE_CONFIG: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price_config_input)],
-            WAITING_FOR_PRICE_USD_CONFIG: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_price_usd_config_input)],
             WAITING_FOR_CONCURRENT_TABS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_set_concurrent_tabs)],
             WAITING_FOR_TARGET_HELPS: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_set_target_helps)],
             WAITING_FOR_LOGIN_DELAY: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_set_login_delay)],
@@ -4051,7 +3103,6 @@ def main():
             WAITING_FOR_REDEEM_CODE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_redeem_code)],
             WAITING_FOR_TUTORIAL_VIDEO: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_tutorial_video_input)],
             WAITING_FOR_DATA_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_data_password_input)],
-            WAITING_FOR_VFCASH_PHONE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_vfcash_phone)],
             WAITING_FOR_FREE_MODE_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_free_mode_time)],
             WAITING_FOR_BLOCK_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_block_user)],
             WAITING_FOR_UNBLOCK_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_unblock_user)],
@@ -4064,14 +3115,10 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT & ~filters.COMMAND, handle_private_direct_message))
     app.add_handler(CallbackQueryHandler(set_language_callback, pattern="^set_lang_"))
-    app.add_handler(CallbackQueryHandler(admin_approval_handler, pattern="^adm_"))
     app.add_handler(CallbackQueryHandler(compensation_callback_handler, pattern="^compensate_"))
     app.add_handler(CallbackQueryHandler(compensation_option_handler, pattern="^comp_opt_"))
     app.add_handler(CallbackQueryHandler(finish_link_handler, pattern="^finish_link_"))
-    app.add_handler(CallbackQueryHandler(admin_offer_approval_handler, pattern="^offer(app|rej)_"))
     app.add_handler(CallbackQueryHandler(handle_data_file_download, pattern="^dl_file_"))
-    app.add_handler(CallbackQueryHandler(confirm_pending_request, pattern="^confirm_req_"))
-    app.add_handler(CallbackQueryHandler(reject_pending_request, pattern="^reject_req_"))
     app.add_handler(CallbackQueryHandler(vip_perms_callback_handler, pattern="^(vip_toggle_|vip_page_)"))
 
     # إضافة معالج الأخطاء
