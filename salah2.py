@@ -420,25 +420,45 @@ def redeem_code(code, user_id):
     return points
 
 # --- الكيبوردات ---
+# custom (premium) emoji IDs for the main reply-keyboard buttons
+USER_BTN_EMOJI = {
+    "account": ("🥹", "5328171071176713918"),
+    "redeem": ("🔥", "5389038097860144794"),
+    "contact": ("😶", "5276269595450162557"),
+    "lang": ("🎁", "5203996991054432397"),
+}
+
+def _reply_btn(text, key=None):
+    """Build a KeyboardButton. If a custom-emoji key is given, try to attach it
+    as a premium icon (supported by the modified telegram lib); fall back to a
+    plain unicode emoji appended to the label if the lib doesn't support it."""
+    if not key or key not in USER_BTN_EMOJI:
+        return KeyboardButton(text=text)
+    emoji_char, emoji_id = USER_BTN_EMOJI[key]
+    try:
+        return KeyboardButton(text=text, icon_custom_emoji_id=emoji_id)
+    except TypeError:
+        return KeyboardButton(text=f"{text} {emoji_char}")
+
 def get_user_keyboard(is_admin_user=False, is_vip_user=False, lang="ar"):
     if lang == "ar":
         kb = [
-            [KeyboardButton(text="حسابي 🥹"), KeyboardButton(text="استرداد كود 🔥")],
-            [KeyboardButton(text="تواصل معنا 😶"), KeyboardButton(text="اللغه الخاصه بك 🎁")],
+            [_reply_btn("حسابي", "account"), _reply_btn("استرداد كود", "redeem")],
+            [_reply_btn("تواصل معنا", "contact"), _reply_btn("اللغه الخاصه بك", "lang")],
         ]
         if is_admin_user:
-            kb.append([KeyboardButton(text="لوحة الإدارة")])
+            kb.append([_reply_btn("لوحة الإدارة")])
         elif is_vip_user:
-            kb.append([KeyboardButton(text="لوحة الـ VIP")])
+            kb.append([_reply_btn("لوحة الـ VIP")])
     else:
         kb = [
-            [KeyboardButton(text="My Account 🥹"), KeyboardButton(text="Redeem Code 🔥")],
-            [KeyboardButton(text="Contact Us 😶"), KeyboardButton(text="Language 🎁")],
+            [_reply_btn("My Account", "account"), _reply_btn("Redeem Code", "redeem")],
+            [_reply_btn("Contact Us", "contact"), _reply_btn("Language", "lang")],
         ]
         if is_admin_user:
-            kb.append([KeyboardButton(text="Admin Panel")])
+            kb.append([_reply_btn("Admin Panel")])
         elif is_vip_user:
-            kb.append([KeyboardButton(text="VIP Panel")])
+            kb.append([_reply_btn("VIP Panel")])
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 def get_vip_buttons(lang="ar"):
@@ -2796,7 +2816,7 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("الدعم الفني 💬" if lang == "ar" else "Technical Support 💬", url=f"https://t.me/{sup}", style="primary")]])
         msg = c("📞 <b>نحن هنا لخدمتك، تواصل معنا عبر الرابط أدناه:</b>" if lang == "ar" else "📞 <b>We are here to serve you, contact us via the link below:</b>")
         await msg_obj.reply_text(msg, reply_markup=kb, parse_mode="HTML")
-    elif text in ["اللغة / Language", "اللغه الخاصه بك 🎁", "Language 🎁"]:
+    elif text in ["اللغة / Language", "اللغه الخاصه بك", "اللغه الخاصه بك 🎁", "Language", "Language 🎁"]:
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("العربية", callback_data="set_lang_ar", style="primary", icon_custom_emoji_id="5990301766606919813"),
             InlineKeyboardButton("English", callback_data="set_lang_en", style="primary", icon_custom_emoji_id="5228866831678191568")
@@ -2814,7 +2834,7 @@ async def main_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg_obj.reply_text(msg, reply_markup=get_user_keyboard(is_adm, is_vip_user, lang), parse_mode="HTML")
         return ConversationHandler.END
     
-    if text in ["🎫 استرداد كود", "🎫 Redeem Code", "استرداد كود 🔥", "Redeem Code 🔥"]:
+    if text in ["🎫 استرداد كود", "🎫 Redeem Code", "استرداد كود", "استرداد كود 🔥", "Redeem Code", "Redeem Code 🔥"]:
         msg = c("🎫 <b>أرسل الكود الآن:</b>" if lang == "ar" else "🎫 <b>Send the code now:</b>")
         await msg_obj.reply_text(msg, parse_mode="HTML")
         return WAITING_FOR_REDEEM_CODE
@@ -3064,7 +3084,7 @@ def main():
     conv = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"^(حسابي|My Account|حسابي 🥹|My Account 🥹|تواصل معنا|Contact Us|تواصل معنا 😶|Contact Us 😶|اللغة / Language|اللغه الخاصه بك 🎁|Language 🎁|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|استرداد كود 🔥|Redeem Code 🔥|🎫 إنشاء أكواد|🎫 Generate Codes|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
+            MessageHandler(filters.Regex(r"^(حسابي|My Account|حسابي 🥹|My Account 🥹|تواصل معنا|Contact Us|تواصل معنا 😶|Contact Us 😶|اللغة / Language|اللغه الخاصه بك|اللغه الخاصه بك 🎁|Language|Language 🎁|لوحة الإدارة|Admin Panel|لوحة الـ VIP|VIP Panel|🔙 رجوع|🔙 Back|📢 إذاعة|📢 Broadcast|تحويل نقاط|Transfer Points|🧹 تصفير نقاط|🧹 Reset Points|👥 قائمة المستخدمين|👥 Users List|📊 الإحصائيات|📊 Statistics|🔗 سجل الروابط|🔗 Links Log|📋 الباقي|📋 Remaining|☎️ تحديد الدعم|☎️ Set Support|➕ إضافة آدمن|➕ Add Admin|➖ إزالة آدمن|➖ Remove Admin|➕ إضافة VIP|➕ Add VIP|➖ إزالة VIP|➖ Remove VIP|⚙️ صلاحيات VIP|⚙️ VIP Permissions|📝 تعديل الترحيب|📝 Edit Welcome|⚙️ إعدادات الأتمتة|⚙️ Automation Settings|🎫 استرداد كود|🎫 Redeem Code|استرداد كود|استرداد كود 🔥|Redeem Code|Redeem Code 🔥|🎫 إنشاء أكواد|🎫 Generate Codes|🎫 إدارة الأكواد|🎫 Manage Codes|🎥 تعيين فيديو الشرح|🎥 Set Tutorial Video|📁 ملفات البيانات|📁 Data Files|🚫 حظر مستخدم|🚫 Block User|✅ الغاء حظر مستخدم|✅ Unblock User)$"), main_menu_handler),
             CallbackQueryHandler(main_menu_handler, pattern="^mm_"),
             CallbackQueryHandler(automation_settings_callback_handler, pattern="^set_(tabs|target|login|search|post|account|comp|batch|close|draw|claim)_")
         ],
